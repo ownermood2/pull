@@ -1,1 +1,60 @@
-{"7653153066": {"total_quizzes": 5, "correct_answers": 5, "current_streak": 0, "longest_streak": 0, "last_correct_date": null, "category_scores": {}, "daily_activity": {}, "last_quiz_date": null}, "7104801101": {"total_quizzes": 1, "correct_answers": 1, "current_streak": 1, "longest_streak": 1, "last_correct_date": "2025-02-24", "category_scores": {}, "daily_activity": {"2025-02-24": {"attempts": 1, "correct": 1}}, "last_quiz_date": "2025-02-24", "groups": {}}, "7669773353": {"total_quizzes": 2, "correct_answers": 2, "current_streak": 1, "longest_streak": 1, "last_correct_date": "2025-02-24", "category_scores": {}, "daily_activity": {"2025-02-24": {"attempts": 1, "correct": 1}}, "last_quiz_date": "2025-02-24", "groups": {"7669773353": {"total_quizzes": 1, "correct_answers": 1, "score": 1, "last_activity_date": "2025-02-24", "daily_activity": {"2025-02-24": {"attempts": 1, "correct": 1}}, "current_streak": 1, "longest_streak": 1, "last_correct_date": "2025-02-24"}}}}
+{
+  "7653153066": {
+    "total_quizzes": 5,
+    "correct_answers": 5,
+    "current_streak": 0,
+    "longest_streak": 0,
+    "last_correct_date": null,
+    "category_scores": {},
+    "daily_activity": {},
+    "last_quiz_date": null
+  },
+  "7104801101": {
+    "total_quizzes": 1,
+    "correct_answers": 1,
+    "current_streak": 1,
+    "longest_streak": 1,
+    "last_correct_date": "2025-02-24",
+    "category_scores": {},
+    "daily_activity": {
+      "2025-02-24": {
+        "attempts": 1,
+        "correct": 1
+      }
+    },
+    "last_quiz_date": "2025-02-24",
+    "groups": {}
+  },
+  "7669773353": {
+    "total_quizzes": 2,
+    "correct_answers": 2,
+    "current_streak": 1,
+    "longest_streak": 1,
+    "last_correct_date": "2025-02-24",
+    "category_scores": {},
+    "daily_activity": {
+      "2025-02-24": {
+        "attempts": 1,
+        "correct": 1
+      }
+    },
+    "last_quiz_date": "2025-02-24",
+    "groups": {
+      "7669773353": {
+        "total_quizzes": 1,
+        "correct_answers": 1,
+        "score": 1,
+        "last_activity_date": "2025-02-24",
+        "daily_activity": {
+          "2025-02-24": {
+            "attempts": 1,
+            "correct": 1
+          }
+        },
+        "current_streak": 1,
+        "longest_streak": 1,
+        "last_correct_date": "2025-02-24"
+      }
+    }
+  }
+}

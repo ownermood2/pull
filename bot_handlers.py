@@ -94,10 +94,15 @@ class TelegramQuizBot:
                 await context.bot.send_message(chat_id=chat_id, text="No questions available.")
                 return
 
+            # Ensure question text is clean
+            question_text = question['question'].strip()
+            if question_text.startswith('/addquiz'):
+                question_text = question_text[len('/addquiz'):].strip()
+
             # Send the poll
             message = await context.bot.send_poll(
                 chat_id=chat_id,
-                question=question['question'],
+                question=question_text,  # Use cleaned question text
                 options=question['options'],
                 type=Poll.QUIZ,
                 correct_option_id=question['correct_answer'],
@@ -110,7 +115,7 @@ class TelegramQuizBot:
                     'correct_option_id': question['correct_answer'],
                     'user_answers': {},
                     'poll_id': message.poll.id,
-                    'question': question['question'],
+                    'question': question_text,  # Store cleaned question text
                     'timestamp': datetime.now().isoformat()
                 }
                 # Store using proper poll ID key
@@ -182,7 +187,14 @@ class TelegramQuizBot:
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
             self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
 
-            # Schedule cleanup and quiz jobs
+            # Schedule automated quiz job
+            self.application.job_queue.run_repeating(
+                self.send_automated_quiz,
+                interval=1200,  # 20 minutes in seconds
+                first=10  # Start first quiz after 10 seconds
+            )
+
+            # Schedule cleanup jobs
             self.application.job_queue.run_repeating(
                 self.scheduled_cleanup,
                 interval=3600,  # Every hour
@@ -224,6 +236,7 @@ class TelegramQuizBot:
         if chat.type in ["group", "supergroup"]:
             if not was_member and is_member:
                 # Bot was added to a group
+                self.quiz_manager.add_active_chat(chat.id)
                 await self.send_welcome_message(chat.id, context)
                 logger.info(f"Bot added to group {chat.title} ({chat.id})")
             elif was_member and not is_member:
@@ -434,7 +447,6 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error showing categories: {e}")
             await update.message.reply_text("Error showing categories.")
-
 
 
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -758,7 +770,7 @@ Use /help to see all available commands! 🎮"""
 
             # Calculate slice indices
             start_idx = (page - 1) * per_page
-            end_idx = min(start_idx + per_page, totalquestions)
+            end_idx = min(start_idx + per_page, total_questions)
 
             # Format header
             questions_text = f"""📝 𝗤𝘂𝗶𝘇 𝗘𝗱𝗶𝘁𝗼𝗿 𝗣𝗮𝗻𝗲𝗹
@@ -1122,6 +1134,45 @@ Use /help to see all commands."""
         except Exception as e:
             logger.error(f"Error in totalquiz command: {e}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error getting total quiz count.")
+
+    async def send_automated_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send automated quiz to all active group chats"""
+        try:
+            active_chats = self.quiz_manager.get_active_chats()
+            logger.info(f"Starting automated quiz broadcast to {len(active_chats)} active chats")
+
+            for chat_id in active_chats:
+                try:
+                    # Check if chat is a group and bot is admin
+                    chat = await context.bot.get_chat(chat_id)
+                    if chat.type not in ["group", "supergroup"]:
+                        logger.info(f"Skipping non-group chat {chat_id}")
+                        continue
+
+                    is_admin = await self.check_admin_status(chat_id, context)
+                    if not is_admin:
+                        logger.warning(f"Bot is not admin in chat {chat_id}, sending reminder")
+                        await self.send_admin_reminder(chat_id, context)
+                        continue
+
+                    # Send quiz to this chat
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text="🎯 𝗔𝘂𝘁𝗼𝗺𝗮𝘁𝗶𝗰 𝗤𝘂𝗶𝘇 𝗧𝗶𝗺𝗲!\n\nGet ready for your next quiz challenge! 🎮",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    await self.send_quiz(chat_id, context)
+                    logger.info(f"Successfully sent automated quiz to chat {chat_id}")
+
+                except Exception as e:
+                    logger.error(f"Failed to send automated quiz to chat {chat_id}: {str(e)}\n{traceback.format_exc()}")
+                    continue
+
+            logger.info("Completed automated quiz broadcast cycle")
+
+        except Exception as e:
+            logger.error(f"Error in automated quiz broadcast: {str(e)}\n{traceback.format_exc()}")
+
 
 async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""

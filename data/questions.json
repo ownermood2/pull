@@ -1,1 +1,632 @@
-[{"question": "What is the capital of France?", "options": ["London", "Paris", "Berlin", "Madrid"], "correct_answer": 1}, {"question": "Which planet is known as the Red Planet?", "options": ["Venus", "Jupiter", "Mars", "Saturn"], "correct_answer": 2}, {"question": "What is the largest mammal in the world?", "options": ["African Elephant", "Blue Whale", "Giraffe", "Hippopotamus"], "correct_answer": 1}]
+[
+  {
+    "question": "What is the capital of France?",
+    "options": [
+      "London",
+      "Paris",
+      "Berlin",
+      "Madrid"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which planet is known as the Red Planet?",
+    "options": [
+      "Venus",
+      "Jupiter",
+      "Mars",
+      "Saturn"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the largest mammal in the world?",
+    "options": [
+      "African Elephant",
+      "Blue Whale",
+      "Giraffe",
+      "Hippopotamus"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who founded the Mughal Empire?",
+    "options": [
+      "Babur",
+      "Akbar",
+      "Humayun",
+      "Aurangzeb"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which ruler built the Qutub Minar?",
+    "options": [
+      "Iltutmish",
+      "Qutb-ud-din Aibak",
+      "Sher Shah Suri",
+      "Akbar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What was the main aim of the Simon Commission?",
+    "options": [
+      "Reforms in India",
+      "To protest British Rule",
+      "Create a new constitution",
+      "Oppose the Indian National Congress"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first female ruler of the Delhi Sultanate?",
+    "options": [
+      "Razia Sultana",
+      "Nur Jahan",
+      "Mumtaz Mahal",
+      "Begum Samru"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which battle was fought between the Marathas and the British in 1803?",
+    "options": [
+      "Battle of Plassey",
+      "Battle of Buxar",
+      "Battle of Assaye",
+      "Battle of Panipat"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the last Nawab of Bengal?",
+    "options": [
+      "Mir Jafar",
+      "Mir Qasim",
+      "Siraj-ud-Daula",
+      "Shuja-ud-Daula"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who led the Civil Disobedience Movement?",
+    "options": [
+      "Mahatma Gandhi",
+      "Jawaharlal Nehru",
+      "Subhas Chandra Bose",
+      "Lal Bahadur Shastri"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Muslim emperor of India?",
+    "options": [
+      "Qutb-ud-din Aibak",
+      "Iltutmish",
+      "Babur",
+      "Aurangzeb"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first President of the Indian National Congress?",
+    "options": [
+      "Womesh Chunder Bonnerjee",
+      "A.O. Hume",
+      "Lala Lajpat Rai",
+      "Bal Gangadhar Tilak"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who discovered the ancient city of Harappa?",
+    "options": [
+      "Alexander Cunningham",
+      "Sir Mortimer Wheeler",
+      "John Marshall",
+      "Aurel Stein"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first to use the term \"Swaraj\"?",
+    "options": [
+      "Bal Gangadhar Tilak",
+      "Lala Lajpat Rai",
+      "Subhas Chandra Bose",
+      "Mahatma Gandhi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the famous emperor of the Maurya Empire who spread Buddhism?",
+    "options": [
+      "Ashoka",
+      "Chandragupta Maurya",
+      "Bindusara",
+      "Samudragupta"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who led the revolt of 1857 in Meerut?",
+    "options": [
+      "Mangal Pandey",
+      "Rani Lakshmibai",
+      "Nana Saheb",
+      "Tatya Tope"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Where was the first battle of Panipat fought?",
+    "options": [
+      "Delhi",
+      "Agra",
+      "Panipat",
+      "Lucknow"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which freedom movement was started in 1905 against the partition of Bengal?",
+    "options": [
+      "Non-Cooperation Movement",
+      "Swadeshi Movement",
+      "Civil Disobedience Movement",
+      "Quit India Movement"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which was the capital of the Mughal Empire during Akbar's rule?",
+    "options": [
+      "Delhi",
+      "Fatehpur Sikri",
+      "Agra",
+      "Lahore"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "In which year did the Indian National Congress split into two factions?",
+    "options": [
+      "1907",
+      "1906",
+      "1915",
+      "1921"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian to win a medal in the Olympics?",
+    "options": [
+      "Vikram Singh",
+      "Dhyan Chand",
+      "Khashaba Dadasaheb Jadhav",
+      "Milkha Singh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first woman to receive the Bharat Ratna?",
+    "options": [
+      "Indira Gandhi",
+      "Sarojini Naidu",
+      "Mother Teresa",
+      "Mothers of India"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first ruler of the Chola Dynasty?",
+    "options": [
+      "Raja Raja Chola",
+      "Vijayalaya Chola",
+      "Karikala Chola",
+      "Rajaraja II"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the leader of the First War of Indian Independence (1857)?",
+    "options": [
+      "Mangal Pandey",
+      "Nana Saheb",
+      "Rani Lakshmibai",
+      "Bahadur Shah Zafar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the founder of the Maratha Empire?",
+    "options": [
+      "Shivaji Maharaj",
+      "Balaji Vishwanath",
+      "Shambhu Singh",
+      "Sambhaji Maharaj"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The famous Battle of Buxar was fought in which year?",
+    "options": [
+      "1761",
+      "1776",
+      "1782",
+      "1764"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian leader said, \u201cSwaraj is my birthright and I shall have it\u201d?",
+    "options": [
+      "Bal Gangadhar Tilak",
+      "Lal Bahadur Shastri",
+      "Mahatma Gandhi",
+      "Jawaharlal Nehru"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first emperor of the Gupta Empire?",
+    "options": [
+      "Chandragupta I",
+      "Chandragupta II",
+      "Samudragupta",
+      "Skandagupta"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which state was the first to join the Indian Union after independence?",
+    "options": [
+      "Jammu and Kashmir",
+      "Hyderabad",
+      "Sikkim",
+      "Goa"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who led the Khilafat Movement?",
+    "options": [
+      "Mahatma Gandhi",
+      "Ali Brothers (Shaukat Ali and Mohammad Ali)",
+      "Maulana Azad",
+      "Sardar Vallabhbhai Patel"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who built the Taj Mahal?",
+    "options": [
+      "Shah Jahan",
+      "Akbar",
+      "Aurangzeb",
+      "Babur"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first woman Prime Minister of India?",
+    "options": [
+      "Indira Gandhi",
+      "Sarojini Naidu",
+      "Annie Besant",
+      "Kasturba Gandhi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first general of the Maratha army?",
+    "options": [
+      "Baji Rao I",
+      "Shivaji Maharaj",
+      "Sambhaji Maharaj",
+      "Mahadji Shinde"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who founded the Mughal Empire?",
+    "options": [
+      "Babur",
+      "Akbar",
+      "Humayun",
+      "Aurangzeb"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which ruler built the Qutub Minar?",
+    "options": [
+      "Iltutmish",
+      "Qutb-ud-din Aibak",
+      "Sher Shah Suri",
+      "Akbar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What was the main aim of the Simon Commission?",
+    "options": [
+      "Reforms in India",
+      "To protest British Rule",
+      "Create a new constitution",
+      "Oppose the Indian National Congress"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first female ruler of the Delhi Sultanate?",
+    "options": [
+      "Razia Sultana",
+      "Nur Jahan",
+      "Mumtaz Mahal",
+      "Begum Samru"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which battle was fought between the Marathas and the British in 1803?",
+    "options": [
+      "Battle of Plassey",
+      "Battle of Buxar",
+      "Battle of Assaye",
+      "Battle of Panipat"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the last Nawab of Bengal?",
+    "options": [
+      "Mir Jafar",
+      "Mir Qasim",
+      "Siraj-ud-Daula",
+      "Shuja-ud-Daula"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who led the Civil Disobedience Movement?",
+    "options": [
+      "Mahatma Gandhi",
+      "Jawaharlal Nehru",
+      "Subhas Chandra Bose",
+      "Lal Bahadur Shastri"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Muslim emperor of India?",
+    "options": [
+      "Qutb-ud-din Aibak",
+      "Iltutmish",
+      "Babur",
+      "Aurangzeb"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first President of the Indian National Congress?",
+    "options": [
+      "Womesh Chunder Bonnerjee",
+      "A.O. Hume",
+      "Lala Lajpat Rai",
+      "Bal Gangadhar Tilak"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who discovered the ancient city of Harappa?",
+    "options": [
+      "Alexander Cunningham",
+      "Sir Mortimer Wheeler",
+      "John Marshall",
+      "Aurel Stein"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first to use the term \"Swaraj\"?",
+    "options": [
+      "Bal Gangadhar Tilak",
+      "Lala Lajpat Rai",
+      "Subhas Chandra Bose",
+      "Mahatma Gandhi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the famous emperor of the Maurya Empire who spread Buddhism?",
+    "options": [
+      "Ashoka",
+      "Chandragupta Maurya",
+      "Bindusara",
+      "Samudragupta"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who led the revolt of 1857 in Meerut?",
+    "options": [
+      "Mangal Pandey",
+      "Rani Lakshmibai",
+      "Nana Saheb",
+      "Tatya Tope"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Where was the first battle of Panipat fought?",
+    "options": [
+      "Delhi",
+      "Agra",
+      "Panipat",
+      "Lucknow"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which freedom movement was started in 1905 against the partition of Bengal?",
+    "options": [
+      "Non-Cooperation Movement",
+      "Swadeshi Movement",
+      "Civil Disobedience Movement",
+      "Quit India Movement"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which was the capital of the Mughal Empire during Akbar's rule?",
+    "options": [
+      "Delhi",
+      "Fatehpur Sikri",
+      "Agra",
+      "Lahore"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "In which year did the Indian National Congress split into two factions?",
+    "options": [
+      "1907",
+      "1906",
+      "1915",
+      "1921"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian to win a medal in the Olympics?",
+    "options": [
+      "Vikram Singh",
+      "Dhyan Chand",
+      "Khashaba Dadasaheb Jadhav",
+      "Milkha Singh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first woman to receive the Bharat Ratna?",
+    "options": [
+      "Indira Gandhi",
+      "Sarojini Naidu",
+      "Mother Teresa",
+      "Mothers of India"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first ruler of the Chola Dynasty?",
+    "options": [
+      "Raja Raja Chola",
+      "Vijayalaya Chola",
+      "Karikala Chola",
+      "Rajaraja II"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the leader of the First War of Indian Independence (1857)?",
+    "options": [
+      "Mangal Pandey",
+      "Nana Saheb",
+      "Rani Lakshmibai",
+      "Bahadur Shah Zafar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the founder of the Maratha Empire?",
+    "options": [
+      "Shivaji Maharaj",
+      "Balaji Vishwanath",
+      "Shambhu Singh",
+      "Sambhaji Maharaj"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The famous Battle of Buxar was fought in which year?",
+    "options": [
+      "1761",
+      "1776",
+      "1782",
+      "1764"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian leader said, \u201cSwaraj is my birthright and I shall have it\u201d?",
+    "options": [
+      "Bal Gangadhar Tilak",
+      "Lal Bahadur Shastri",
+      "Mahatma Gandhi",
+      "Jawaharlal Nehru"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first emperor of the Gupta Empire?",
+    "options": [
+      "Chandragupta I",
+      "Chandragupta II",
+      "Samudragupta",
+      "Skandagupta"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which state was the first to join the Indian Union after independence?",
+    "options": [
+      "Jammu and Kashmir",
+      "Hyderabad",
+      "Sikkim",
+      "Goa"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who led the Khilafat Movement?",
+    "options": [
+      "Mahatma Gandhi",
+      "Ali Brothers (Shaukat Ali and Mohammad Ali)",
+      "Maulana Azad",
+      "Sardar Vallabhbhai Patel"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who built the Taj Mahal?",
+    "options": [
+      "Shah Jahan",
+      "Akbar",
+      "Aurangzeb",
+      "Babur"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first woman Prime Minister of India?",
+    "options": [
+      "Indira Gandhi",
+      "Sarojini Naidu",
+      "Annie Besant",
+      "Kasturba Gandhi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first general of the Maratha army?",
+    "options": [
+      "Baji Rao I",
+      "Shivaji Maharaj",
+      "Sambhaji Maharaj",
+      "Mahadji Shinde"
+    ],
+    "correct_answer": 0
+  }
+]

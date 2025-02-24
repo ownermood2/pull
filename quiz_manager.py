@@ -5,7 +5,6 @@ import logging
 import traceback
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
-from functools import lru_cache
 from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
@@ -52,13 +51,33 @@ class QuizManager:
         """Load all data with proper error handling"""
         try:
             with open(self.questions_file, 'r') as f:
-                self.questions = json.load(f)
+                raw_questions = json.load(f)
+                # Clean up existing questions
+                self.questions = []
+                for q in raw_questions:
+                    question = q['question'].strip()
+                    if question.startswith('/addquiz'):
+                        question = question[len('/addquiz'):].strip()
+
+                    # Ensure correct_answer is zero-based
+                    correct_answer = q['correct_answer']
+                    if isinstance(correct_answer, int) and correct_answer > 0:
+                        correct_answer = correct_answer - 1
+
+                    self.questions.append({
+                        'question': question,
+                        'options': q['options'],
+                        'correct_answer': correct_answer
+                    })
             with open(self.scores_file, 'r') as f:
                 self.scores = json.load(f)
             with open(self.active_chats_file, 'r') as f:
                 self.active_chats = json.load(f)
             with open(self.stats_file, 'r') as f:
                 self.stats = json.load(f)
+            # Force save to update cleaned questions
+            self.save_data(force=True)
+            logger.info(f"Loaded and cleaned {len(self.questions)} questions")
         except Exception as e:
             logger.error(f"Error loading data: {e}")
             raise
@@ -103,7 +122,6 @@ class QuizManager:
             'groups': {}
         }
 
-    @lru_cache(maxsize=100)
     def get_user_stats(self, user_id: int) -> Dict:
         """Get comprehensive stats for a user with caching"""
         try:
@@ -323,8 +341,8 @@ class QuizManager:
         """Initialize or reset available questions for a chat"""
         self.available_questions[chat_id] = list(range(len(self.questions)))
         random.shuffle(self.available_questions[chat_id])
+        logger.info(f"Initialized question pool for chat {chat_id} with {len(self.questions)} questions")
 
-    @lru_cache(maxsize=100)
     def get_random_question(self, chat_id: int = None) -> Optional[Dict[str, Any]]:
         """Get a random question avoiding recent ones with improved tracking"""
         try:
@@ -336,7 +354,8 @@ class QuizManager:
                 return random.choice(self.questions)
 
             # Initialize available questions if needed
-            if not self.available_questions[chat_id]:
+            if chat_id not in self.available_questions or not self.available_questions[chat_id]:
+                logger.info(f"Initializing question pool for chat {chat_id}")
                 self._initialize_available_questions(chat_id)
 
             # Get the next question index from the shuffled list
@@ -349,16 +368,18 @@ class QuizManager:
 
             # If we've used all questions, reset the pool
             if not self.available_questions[chat_id]:
-                self._initialize_available_questions(chat_id)
                 logger.info(f"Reset question pool for chat {chat_id}")
+                self._initialize_available_questions(chat_id)
 
             logger.info(f"Selected question {question_index} for chat {chat_id}. "
+                       f"Question text: {question['question'][:30]}... "
                        f"Remaining questions: {len(self.available_questions[chat_id])}")
             return question
 
         except Exception as e:
             logger.error(f"Error in get_random_question: {e}\n{traceback.format_exc()}")
-            return random.choice(self.questions)  # Fallback to completely random selection
+            # Fallback to completely random selection
+            return random.choice(self.questions)
 
     def get_leaderboard(self) -> List[Dict]:
         """Get global leaderboard with caching"""
@@ -445,11 +466,8 @@ class QuizManager:
             return stats
 
         logger.info(f"Starting to add {len(questions_data)} questions. Current count: {len(self.questions)}")
-
-        # Debug: Log existing questions
-        logger.debug(f"Existing questions before adding: {json.dumps(self.questions, indent=2)}")
-
         added_questions = []
+
         for question_data in questions_data:
             try:
                 # Basic format validation
@@ -459,9 +477,25 @@ class QuizManager:
                     stats['errors'].append(f"Invalid format for question: {question_data.get('question', 'Unknown')}")
                     continue
 
+                # Clean up question text - remove /addquiz prefix and extra whitespace
                 question = question_data['question'].strip()
+                if question.startswith('/addquiz'):
+                    question = question[len('/addquiz'):].strip()
+
                 options = [opt.strip() for opt in question_data['options']]
+
+                # Convert correct_answer to zero-based index if needed
                 correct_answer = question_data['correct_answer']
+                if isinstance(correct_answer, str):
+                    try:
+                        correct_answer = int(correct_answer)
+                    except ValueError:
+                        logger.warning(f"Invalid correct_answer format: {correct_answer}")
+                        stats['rejected']['invalid_format'] += 1
+                        continue
+
+                if isinstance(correct_answer, int) and correct_answer > 0:
+                    correct_answer = correct_answer - 1
 
                 # Validate question text
                 if not question or len(question) < 5:
@@ -470,8 +504,12 @@ class QuizManager:
                     stats['errors'].append(f"Question text too short: {question}")
                     continue
 
-                # Debug: Log each question being processed
-                logger.debug(f"Processing question: {question}")
+                # Check for duplicates
+                if any(q['question'].lower() == question.lower() for q in self.questions):
+                    logger.warning(f"Duplicate question detected: {question}")
+                    stats['rejected']['duplicates'] += 1
+                    stats['errors'].append(f"Duplicate question: {question}")
+                    continue
 
                 # Validate options
                 if len(options) != 4 or not all(opt for opt in options):
@@ -506,16 +544,6 @@ class QuizManager:
             self.questions.extend(added_questions)
             # Force save immediately after adding questions
             self.save_data(force=True)
-
-            # Debug: Verify saved questions by reading the file
-            try:
-                with open(self.questions_file, 'r') as f:
-                    saved_questions = json.load(f)
-                logger.info(f"Verified saved questions count: {len(saved_questions)}")
-                logger.debug(f"Saved questions content: {json.dumps(saved_questions, indent=2)}")
-            except Exception as e:
-                logger.error(f"Error verifying saved questions: {e}")
-
             logger.info(f"Added {stats['added']} questions. New total: {len(self.questions)}")
 
         return stats
