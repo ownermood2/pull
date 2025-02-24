@@ -154,6 +154,7 @@ class QuizManager:
 
     def _init_user_stats(self, user_id: str) -> None:
         """Initialize stats for a new user"""
+        current_date = datetime.now().strftime('%Y-%m-%d')
         self.stats[user_id] = {
             'total_quizzes': 0,
             'correct_answers': 0,
@@ -161,24 +162,36 @@ class QuizManager:
             'longest_streak': 0,
             'last_correct_date': None,
             'category_scores': {},
-            'daily_activity': {},
-            'last_quiz_date': None,
+            'daily_activity': {
+                current_date: {
+                    'attempts': 0,
+                    'correct': 0
+                }
+            },
+            'last_quiz_date': current_date,
             'groups': {}
         }
 
     def get_user_stats(self, user_id: int) -> Dict:
         """Get comprehensive stats for a user with caching"""
         try:
-            user_id = str(user_id)
-            if user_id not in self.stats:
-                self._init_user_stats(user_id)
+            user_id_str = str(user_id)
+            if user_id_str not in self.stats:
+                self._init_user_stats(user_id_str)
                 self.save_data()
 
-            stats = self.stats[user_id]
-            current_date = datetime.now()
+            stats = self.stats[user_id_str]
+            current_date = datetime.now().strftime('%Y-%m-%d')
+
+            # Initialize today's activity if not exists
+            if current_date not in stats['daily_activity']:
+                stats['daily_activity'][current_date] = {
+                    'attempts': 0,
+                    'correct': 0
+                }
 
             # Synchronize score with correct answers and fix any inconsistencies
-            score = self.scores.get(user_id, 0)
+            score = self.scores.get(user_id_str, 0)
             if score > 0:
                 stats['total_quizzes'] = max(stats['total_quizzes'], score)
                 stats['correct_answers'] = score
@@ -186,21 +199,30 @@ class QuizManager:
                 logger.info(f"Synchronized stats for user {user_id}: score={score}, total_quizzes={stats['total_quizzes']}")
 
             # Calculate activity stats
-            today = current_date.strftime('%Y-%m-%d')
-            today_stats = stats['daily_activity'].get(today, {'attempts': 0})
+            today_stats = stats['daily_activity'].get(current_date, {'attempts': 0, 'correct': 0})
 
             # Calculate this week's stats
-            week_start = (current_date - timedelta(days=current_date.weekday())).strftime('%Y-%m-%d')
+            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
             week_quizzes = sum(
                 day_stats['attempts']
                 for date, day_stats in stats['daily_activity'].items()
                 if date >= week_start
             )
+            week_correct = sum(
+                day_stats['correct']
+                for date, day_stats in stats['daily_activity'].items()
+                if date >= week_start
+            )
 
             # Calculate this month's stats
-            month_start = current_date.replace(day=1).strftime('%Y-%m-%d')
+            month_start = datetime.now().replace(day=1).strftime('%Y-%m-%d')
             month_quizzes = sum(
                 day_stats['attempts']
+                for date, day_stats in stats['daily_activity'].items()
+                if date >= month_start
+            )
+            month_correct = sum(
+                day_stats['correct']
                 for date, day_stats in stats['daily_activity'].items()
                 if date >= month_start
             )
@@ -212,39 +234,35 @@ class QuizManager:
                 else 0.0
             )
 
-            # Get category mastery
-            category_master = None
-            if stats['category_scores']:
-                best_category = max(stats['category_scores'].items(), key=lambda x: x[1])
-                if best_category[1] >= 10:  # Threshold for mastery
-                    category_master = best_category[0]
-
             return {
                 'total_quizzes': stats['total_quizzes'],
                 'correct_answers': stats['correct_answers'],
                 'success_rate': round(success_rate, 1),
                 'current_score': stats['correct_answers'],
-                'today_quizzes': today_stats['attempts'],
-                'week_quizzes': week_quizzes,
-                'month_quizzes': month_quizzes,
+                'today_attempts': today_stats['attempts'],
+                'today_correct': today_stats['correct'],
+                'week_attempts': week_quizzes,
+                'week_correct': week_correct,
+                'month_attempts': month_quizzes,
+                'month_correct': month_correct,
                 'current_streak': stats['current_streak'],
-                'longest_streak': stats['longest_streak'],
-                'category_master': category_master
+                'longest_streak': stats['longest_streak']
             }
         except Exception as e:
             logger.error(f"Error getting user stats for {user_id}: {str(e)}\n{traceback.format_exc()}")
-            # Return default stats in case of error
             return {
                 'total_quizzes': 0,
                 'correct_answers': 0,
                 'success_rate': 0.0,
                 'current_score': 0,
-                'today_quizzes': 0,
-                'week_quizzes': 0,
-                'month_quizzes': 0,
+                'today_attempts': 0,
+                'today_correct': 0,
+                'week_attempts': 0,
+                'week_correct': 0,
+                'month_attempts': 0,
+                'month_correct': 0,
                 'current_streak': 0,
-                'longest_streak': 0,
-                'category_master': None
+                'longest_streak': 0
             }
 
     def get_group_leaderboard(self, chat_id: int) -> Dict:
@@ -428,14 +446,22 @@ class QuizManager:
     def get_leaderboard(self) -> List[Dict]:
         """Get global leaderboard with caching"""
         current_time = datetime.now()
+
+        # Force refresh cache if it's stale
         if (self._cached_leaderboard is None or
             self._leaderboard_cache_time is None or
             current_time - self._leaderboard_cache_time > self._cache_duration):
 
             leaderboard = []
+            current_date = current_time.strftime('%Y-%m-%d')
+
             for user_id, stats in self.stats.items():
                 total_attempts = stats['total_quizzes']
                 correct_answers = stats['correct_answers']
+
+                # Get today's performance
+                today_stats = stats['daily_activity'].get(current_date, {'attempts': 0, 'correct': 0})
+
                 accuracy = (correct_answers / total_attempts * 100) if total_attempts > 0 else 0
 
                 leaderboard.append({
@@ -444,29 +470,43 @@ class QuizManager:
                     'correct_answers': correct_answers,
                     'wrong_answers': total_attempts - correct_answers,
                     'accuracy': round(accuracy, 1),
-                    'score': self.get_score(int(user_id))
+                    'score': self.get_score(int(user_id)),
+                    'today_attempts': today_stats['attempts'],
+                    'today_correct': today_stats['correct'],
+                    'current_streak': stats.get('current_streak', 0),
+                    'longest_streak': stats.get('longest_streak', 0)
                 })
 
-            leaderboard.sort(key=lambda x: x['score'], reverse=True)
+            # Sort by score, then accuracy, then streak
+            leaderboard.sort(key=lambda x: (-x['score'], -x['accuracy'], -x['current_streak']))
             self._cached_leaderboard = leaderboard[:10]
             self._leaderboard_cache_time = current_time
+            logger.info(f"Refreshed leaderboard cache with {len(leaderboard)} entries")
 
         return self._cached_leaderboard
 
     def record_attempt(self, user_id: int, is_correct: bool, category: str = None):
         """Record a quiz attempt for a user"""
-        user_id = str(user_id)
+        user_id_str = str(user_id)
         current_date = datetime.now().strftime('%Y-%m-%d')
 
-        if user_id not in self.stats:
-            self._init_user_stats(user_id)
+        if user_id_str not in self.stats:
+            self._init_user_stats(user_id_str)
 
-        stats = self.stats[user_id]
+        stats = self.stats[user_id_str]
         stats['total_quizzes'] += 1
         stats['last_quiz_date'] = current_date
 
+        # Initialize today's activity if not exists
+        if current_date not in stats['daily_activity']:
+            stats['daily_activity'][current_date] = {'attempts': 0, 'correct': 0}
+
+        # Update daily activity
+        stats['daily_activity'][current_date]['attempts'] += 1
+
         if is_correct:
             stats['correct_answers'] += 1
+            stats['daily_activity'][current_date]['correct'] += 1
 
             # Update streak
             if stats.get('last_correct_date') == (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'):
@@ -483,13 +523,6 @@ class QuizManager:
                 stats['category_scores'][category] += 1
         else:
             stats['current_streak'] = 0
-
-        # Update daily activity
-        if current_date not in stats['daily_activity']:
-            stats['daily_activity'][current_date] = {'attempts': 0, 'correct': 0}
-        stats['daily_activity'][current_date]['attempts'] += 1
-        if is_correct:
-            stats['daily_activity'][current_date]['correct'] += 1
 
         self.save_data()
 
