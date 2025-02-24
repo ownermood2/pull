@@ -198,7 +198,6 @@ class TelegramQuizBot:
 
             stats_message = f"""📊 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗣𝗲𝗿𝘀𝗼𝗻𝗮𝗹 𝗦𝘁𝗮𝘁𝘀
 ════════════════
-
 👤 {user.first_name}
 
 🎯 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
@@ -256,7 +255,32 @@ Use /help to see all available commands! 🎮"""
     async def leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show global leaderboard"""
         try:
-            await update.message.reply_text("Leaderboard feature coming soon! 🏆")
+            leaderboard = self.quiz_manager.get_leaderboard()
+
+            if not leaderboard:
+                await update.message.reply_text("No quiz participants yet! Be the first one to start! 🎯")
+                return
+
+            # Header
+            leaderboard_text = "   🏆 All-Time Quiz Champions\n\n"
+
+            # Get user info for each leaderboard entry
+            for rank, entry in enumerate(leaderboard, 1):
+                try:
+                    # Get user info from Telegram
+                    user = await context.bot.get_chat(entry['user_id'])
+                    username = user.first_name or user.username or "Anonymous"
+
+                    leaderboard_text += f"   🏅 {rank}. {username}\n"
+                    leaderboard_text += f"      ✅ Attend: {entry['total_attempts']}\n"
+                    leaderboard_text += f"      🎯 Correct: {entry['correct_answers']}\n"
+                    leaderboard_text += f"      ❌ Wrong: {entry['wrong_answers']}\n"
+                    leaderboard_text += f"      📊 Accuracy: {entry['accuracy']}%\n\n"
+                except Exception as e:
+                    logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
+                    continue
+
+            await update.message.reply_text(leaderboard_text)
         except Exception as e:
             logger.error(f"Error showing leaderboard: {e}")
             await update.message.reply_text("Error retrieving leaderboard.")

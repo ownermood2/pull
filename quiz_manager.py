@@ -223,3 +223,25 @@ class QuizManager:
 
     def get_active_chats(self) -> List[int]:
         return self.active_chats
+
+    def get_leaderboard(self) -> List[Dict]:
+        """Get top 10 users with their comprehensive statistics"""
+        leaderboard = []
+        for user_id, stats in self.stats.items():
+            total_attempts = stats['total_quizzes']
+            correct_answers = stats['correct_answers']
+            wrong_answers = total_attempts - correct_answers
+            accuracy = (correct_answers / total_attempts * 100) if total_attempts > 0 else 0
+
+            leaderboard.append({
+                'user_id': int(user_id),
+                'total_attempts': total_attempts,
+                'correct_answers': correct_answers,
+                'wrong_answers': wrong_answers,
+                'accuracy': round(accuracy, 1),
+                'score': self.get_score(int(user_id))
+            })
+
+        # Sort by score and get top 10
+        leaderboard.sort(key=lambda x: x['score'], reverse=True)
+        return leaderboard[:10]
