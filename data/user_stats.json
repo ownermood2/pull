@@ -1,6 +1,6 @@
 {
   "7653153066": {
-    "total_quizzes": 22,
+    "total_quizzes": 23,
     "correct_answers": 20,
     "current_streak": 0,
     "longest_streak": 1,
@@ -8,20 +8,20 @@
     "category_scores": {},
     "daily_activity": {
       "2025-02-24": {
-        "attempts": 12,
+        "attempts": 13,
         "correct": 10
       }
     },
     "last_quiz_date": "2025-02-24",
     "groups": {
       "-1002494068272": {
-        "total_quizzes": 7,
+        "total_quizzes": 8,
         "correct_answers": 5,
         "score": 5,
         "last_activity_date": "2025-02-24",
         "daily_activity": {
           "2025-02-24": {
-            "attempts": 7,
+            "attempts": 8,
             "correct": 5
           }
         },

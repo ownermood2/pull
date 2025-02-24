@@ -758,7 +758,7 @@ Use /help to see all available commands! 🎮"""
                 1 for chat_id in active_chats
                 if any(
                     stats.get('last_quiz_date') == current_date
-                    for stats in self.quiz_manager.stats.values()
+                                        for stats in self.quiz_manager.stats.values()
                     if str(chat_id) in stats.get('groups', {})
                 )
             )
@@ -816,13 +816,21 @@ Use /help to see all available commands! 🎮"""
             await update.message.reply_text("❌ Error retrieving global stats.")
 
     async def editquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Edit existing quiz - Developer only"""
+        """Show and edit quiz questions - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Parse command arguments
+            logger.info(f"Processing /editquiz command from user {update.message.from_user.id}")
+
+            # Get all questions
+            questions = self.quiz_manager.get_all_questions()
+            if not questions:
+                await update.message.reply_text("❌ No questions available to edit.")
+                return
+
+            # Parse arguments for pagination
             args = context.args
             page = 1
             per_page = 5
@@ -830,68 +838,72 @@ Use /help to see all available commands! 🎮"""
             if args and args[0].isdigit():
                 page = max(1, int(args[0]))
 
-            # Get all questions
-            questions = self.quiz_manager.get_all_questions()
-            total_questions = len(questions)
-            total_pages = max(1, (total_questions + per_page - 1) // per_page)
-            page = min(page, total_pages)
-
-            # Calculate slice indices
             start_idx = (page - 1) * per_page
-            end_idx = min(start_idx + per_page, total_questions)
+            end_idx = start_idx + per_page
+            total_pages = (len(questions) + per_page - 1) // per_page
 
-            # Format header
-            questions_text = f"""📝 𝗤𝘂𝗶𝘇 𝗘𝗱𝗶𝘁𝗼𝗿 𝗣𝗮𝗻𝗲𝗹
+            # Adjust page if out of bounds
+            if page > total_pages:
+                page = total_pages
+                start_idx = (page - 1) * per_page
+                end_idx = start_idx + per_page
+
+            # Format questions for display
+            questions_text = f"""📝 𝗤𝘂𝗶𝘇 𝗘𝗱𝗶𝘁𝗼𝗿 (Page {page}/{total_pages})
 ════════════════
-📊 𝗦𝘁𝗮𝘁𝘂𝘀
-• Total Questions: {total_questions}
-• Showing: {start_idx + 1}-{end_idx}
-• Page: {page}/{total_pages}
 
-📌 𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀
-• View different pages: /editquiz <page_number>
-• Delete a question: /delquiz <question_number>
-• Add new questions: /addquiz
+To edit a quiz, use:
+/editquiz [page_number]
+To delete a quiz:
+/delquiz [quiz_number]
 
-🎯 𝗤𝘂𝗲𝘀𝘁𝗶𝗼𝗻𝘀
 """
-
-            # Add questions with proper formatting
             for i, q in enumerate(questions[start_idx:end_idx], start=start_idx + 1):
-                questions_text += f"\n{i}. {q['question']}\n"
-                for j, opt in enumerate(q['options']):
-                    status = '✅' if j == q['correct_answer'] else '⭕'
-                    questions_text += f"   {status} {opt}\n"
-                questions_text += "\n"
+                questions_text += f"""📌 𝗤𝘂𝗶𝘇 #{i}
+❓ Question: {q['question']}
+📍 Options:
+"""
+                for j, opt in enumerate(q['options'], 1):
+                    marker = "✅" if j-1 == q['correct_answer'] else "⭕"
+                    questions_text += f"{marker} {j}. {opt}\n"
+                questions_text += "════════════════\n\n"
 
-            # Add navigation footer if multiple pages
+            # Add navigation help
             if total_pages > 1:
-                questions_text += "\n📖 𝗣𝗮𝗴𝗲 𝗡𝗮𝘃𝗶𝗴𝗮𝘁𝗶𝗼𝗻\n"
+                questions_text += f"\n📖 Page {page} of {total_pages}"
                 if page > 1:
-                    questions_text += f"← Previous: /editquiz {page-1}\n"
+                    questions_text += "\n⬅️ Previous page: /editquiz {prev}".format(prev=page-1)
                 if page < total_pages:
-                    questions_text += f"→ Next: /editquiz {page+1}\n"
+                    questions_text += "\n➡️ Next page: /editquiz {next}".format(next=page+1)
 
-            questions_text += "\n════════════════"
-
-            # Split message if too long
-            if len(questions_text) > 4000:
-                chunks = [questions_text[i:i+4000] for i in range(0, len(questions_text), 4000)]
-                for chunk in chunks:
-                    await update.message.reply_text(chunk, parse_mode=ParseMode.MARKDOWN)
-            else:
-                await update.message.reply_text(questions_text, parse_mode=ParseMode.MARKDOWN)
+            # Send the formatted message
+            await update.message.reply_text(
+                questions_text,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            logger.info(f"Sent quiz list page {page}/{total_pages} to user {update.message.from_user.id}")
 
         except Exception as e:
-            logger.error(f"Error in editquiz: {e}\n{traceback.format_exc()}")
-            error_message = """❌ 𝗘𝗿𝗿𝗼𝗿 𝗘𝗱𝗶𝘁𝗶𝗻𝗴 𝗤𝘂𝗶𝘇
-════════════════
-An error occurred while processing your request.
-Please try again or contact support if the issue persists.
+            error_msg = f"Error in editquiz command: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            await update.message.reply_text(
+                "❌ Error displaying quizzes. Please check logs.",
+                parse_mode=ParseMode.MARKDOWN
+            )
 
-⚠️ Error Details: Command processing failed
-════════════════"""
-            await update.message.reply_text(error_message, parse_mode=ParseMode.MARKDOWN)
+    async def _handle_dev_command_unauthorized(self, update: Update) -> None:
+        """Handle unauthorized access to developer commands"""
+        await update.message.reply_text(
+            "⚠️ This command is only available to bot developers.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.warning(f"Unauthorized access attempt to dev command by user {update.message.from_user.id}")
+
+    async def is_developer(self, user_id: int) -> bool:
+        """Check if user is a developer"""
+        # Add developer user IDs here
+        DEVELOPER_IDS = [7653153066]  # Example developer ID
+        return user_id in DEVELOPER_IDS
 
     async def broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send announcements - Developer only"""
@@ -934,33 +946,6 @@ Please try again or contact support if the issue persists.
         except Exception as e:
             logger.error(f"Error in broadcast: {e}")
             await update.message.reply_text("❌ Error sending broadcast.")
-
-    async def is_developer(self, user_id: int) -> bool:
-        """Check if user is a developer"""
-        try:
-            user = await self.application.bot.get_chat_member(user_id, user_id)
-            return (user.user.username in ['CV_Owner', 'Ace_Clat'])
-        except Exception as e:
-            logger.error(f"Error checking developer status: {e}")
-            return False
-
-    async def _handle_dev_command_unauthorized(self, update: Update) -> None:
-        """Handle unauthorized access to developer commands"""
-        message = """🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗔𝗖𝗖𝗘𝗦𝗦 𝗢𝗡𝗟𝗬
-════════════════
-🚀 𝗥𝗲𝘀𝘁𝗿𝗶𝗰𝘁𝗲𝗱 𝗔𝗰𝗰𝗲𝘀𝘀
-🔹 This command is exclusively available to the Developer & His Wife to maintain quiz integrity & security.
-
-📌 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 & ଇ𝗻𝗾𝘂𝗶𝗿𝗶𝗲𝘀
-📩 Contact: @CV_Owner & His Wifu ❤️
-💰 Paid Promotions: Up to 25K GC
-📝 Contribute: Share your quiz ideas
-⚠️ Report: Issues & bugs
-💡 Suggest: Improvements & enhancements
-
-✅ Thank you for your cooperation!
-════════════════"""
-        await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
 
     async def check_admin_status(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """Check if bot is admin in the chat"""
@@ -1091,89 +1076,105 @@ Please try again or contact support if the issue persists.
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Parse command arguments
-            args = context.args
-            if not args or not args[0].isdigit():
+            # Check if quiz number is provided
+            if not context.args:
                 await update.message.reply_text(
-                    "❌ Please provide a valid question number to delete.\n"
-                    "Example: /delquiz 5",
+                    "❌ Please provide a quiz number to delete.\n"
+                    "Usage: /delquiz [quiz_number]",
                     parse_mode=ParseMode.MARKDOWN
                 )
                 return
 
-            question_num = int(args[0])
-            questions = self.quiz_manager.get_all_questions()
+            try:
+                quiz_num = int(context.args[0])
+                questions = self.quiz_manager.get_all_questions()
 
-            if question_num < 1 or question_num > len(questions):
-                await update.message.reply_text(
-                    f"❌ Invalid question number. Please choose a number between 1 and {len(questions)}.",
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                return
+                if not (1 <= quiz_num <= len(questions)):
+                    await update.message.reply_text(
+                        f"❌ Invalid quiz number. Please choose between 1 and {len(questions)}",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    return
 
-            # Get question details for confirmation
-            question = questions[question_num - 1]
-            confirmation_text = f"""⚠️ 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
+                # Show quiz details and ask for confirmation
+                quiz = questions[quiz_num - 1]
+                confirm_text = f"""🗑 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
 ════════════════
-You are about to delete the following question:
-
-📝 Question #{question_num}:
-{question['question']}
-
-Options:
+📌 Quiz #{quiz_num}
+❓ Question: {quiz['question']}
+📍 Options:
 """
-            for i, opt in enumerate(question['options']):
-                status = '✅' if i == question['correct_answer'] else '⭕'
-                confirmation_text += f"{status} {opt}\n"
+                for i, opt in enumerate(quiz['options'], 1):
+                    marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
+                    confirm_text += f"{marker} {i}. {opt}\n"
 
-            confirmation_text += "\nTo confirm deletion, reply with: /delquiz_confirm " + str(question_num)
-            confirmation_text += "\n════════════════"
+                confirm_text += "\n⚠️ To confirm deletion, use:\n/delquiz_confirm {num}".format(num=quiz_num)
 
-            await update.message.reply_text(confirmation_text, parse_mode=ParseMode.MARKDOWN)
+                await update.message.reply_text(
+                    confirm_text,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.info(f"Sent deletion confirmation for quiz #{quiz_num}")
+
+            except ValueError:
+                await update.message.reply_text(
+                    "❌ Invalid quiz number format. Please use a number.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
 
         except Exception as e:
-            logger.error(f"Error in delquiz: {e}")
+            error_msg = f"Error in delquiz command: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_msg)
             await update.message.reply_text(
-                "❌ Error processing delete request. Please try again.",
+                "❌ Error processing delete request.",
                 parse_mode=ParseMode.MARKDOWN
             )
 
     async def delquiz_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Confirm and execute quiz question deletion - Developer only"""
+        """Confirm and execute quiz deletion - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            args = context.args
-            if not args or not args[0].isdigit():
+            if not context.args:
+                await update.message.reply_text(
+                    "❌ Please provide a quiz number to confirm deletion.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
                 return
 
-            question_num = int(args[0])
-            questions = self.quiz_manager.get_all_questions()
+            try:
+                quiz_num = int(context.args[0])
+                questions = self.quiz_manager.get_all_questions()
 
-            if question_num < 1 or question_num > len(questions):
-                return
+                if not (1 <= quiz_num <= len(questions)):
+                    await update.message.reply_text(
+                        f"❌ Invalid quiz number. Please choose between 1 and {len(questions)}",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    return
 
-            # Delete the question
-            self.quiz_manager.delete_question(question_num - 1)
+                # Delete the quiz
+                self.quiz_manager.delete_question(quiz_num - 1)
 
-            success_message = f"""✅ 𝗤𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗗𝗲𝗹𝗲𝘁𝗲𝗱
-════════════════
-Successfully deleted question #{question_num}
+                await update.message.reply_text(
+                    f"✅ Quiz #{quiz_num} has been deleted successfully.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.info(f"Successfully deleted quiz #{quiz_num}")
 
-📊 Updated Statistics:
-• Total Questions: {len(self.quiz_manager.get_all_questions())}
-
-Use /editquiz to view remaining questions
-════════════════"""
-
-            await update.message.reply_text(success_message, parse_mode=ParseMode.MARKDOWN)
+            except ValueError:
+                await update.message.reply_text(
+                    "❌ Invalid quiz number format. Please use a number.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
 
         except Exception as e:
-            logger.error(f"Error in delquiz_confirm: {e}")
+            error_msg = f"Error in delquiz_confirm command: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_msg)
             await update.message.reply_text(
-                "❌ Error deleting question. Please try again.",
+                "❌ Error deleting quiz.",
                 parse_mode=ParseMode.MARKDOWN
             )
 
