@@ -18,9 +18,14 @@ logger = logging.getLogger(__name__)
 keep_alive_app = Flask('')
 start_time = datetime.now()
 
+@keep_alive_app.route('/')
+def home():
+    """Main endpoint for UptimeRobot to ping"""
+    return "Bot is alive!"
+
 @keep_alive_app.route('/health')
 def health():
-    """Health check endpoint"""
+    """Health check endpoint with detailed status"""
     uptime = datetime.now() - start_time
     process = psutil.Process(os.getpid())
     memory_usage = process.memory_info().rss / 1024 / 1024  # Convert to MB
@@ -37,20 +42,26 @@ def run():
     keep_alive_app.run(host='0.0.0.0', port=8080)
 
 def ping_server():
-    """Ping server every 2 minutes to keep it alive"""
+    """Ping server every minute to keep it alive"""
     consecutive_failures = 0
     max_failures = 3
     while True:
         try:
-            response = requests.get(
+            # Try both endpoints for redundancy
+            response1 = requests.get(
+                f"https://{os.environ['REPL_SLUG']}.{os.environ['REPL_OWNER']}.repl.co/",
+                timeout=30
+            )
+            response2 = requests.get(
                 f"https://{os.environ['REPL_SLUG']}.{os.environ['REPL_OWNER']}.repl.co/health",
                 timeout=30
             )
-            if response.status_code == 200:
+
+            if response1.status_code == 200 and response2.status_code == 200:
                 logger.info("Server pinged successfully")
                 consecutive_failures = 0
             else:
-                raise Exception(f"Unexpected status code: {response.status_code}")
+                raise Exception(f"Unexpected status codes: / ({response1.status_code}), /health ({response2.status_code})")
         except Exception as e:
             consecutive_failures += 1
             logger.error(f"Failed to ping server (attempt {consecutive_failures}): {e}")
@@ -59,7 +70,7 @@ def ping_server():
                 logger.critical("Multiple ping failures detected, restarting application...")
                 os._exit(1)  # Force restart through process manager
 
-        time.sleep(120)  # Wait 2 minutes between pings
+        time.sleep(60)  # Check every minute
 
 def monitor_memory():
     """Monitor and manage memory usage"""
@@ -94,23 +105,27 @@ def monitor_memory():
 
 def keep_alive():
     """Start the keep-alive server and monitoring threads"""
-    server_thread = threading.Thread(target=run)
-    ping_thread = threading.Thread(target=ping_server)
-    memory_thread = threading.Thread(target=monitor_memory)
+    try:
+        server_thread = threading.Thread(target=run)
+        ping_thread = threading.Thread(target=ping_server)
+        memory_thread = threading.Thread(target=monitor_memory)
 
-    server_thread.daemon = True
-    ping_thread.daemon = True
-    memory_thread.daemon = True
+        server_thread.daemon = True
+        ping_thread.daemon = True
+        memory_thread.daemon = True
 
-    server_thread.start()
-    ping_thread.start()
-    memory_thread.start()
+        server_thread.start()
+        ping_thread.start()
+        memory_thread.start()
 
-    logger.info("Keep-alive server and monitoring started")
+        logger.info("Keep-alive server and monitoring started")
+    except Exception as e:
+        logger.error(f"Error in keep_alive: {e}")
+        raise
 
 def start_keep_alive():
     """Start keep-alive with error handling and retries"""
-    max_retries = 3
+    max_retries = 5  # Increased from 3 to 5
     retry_count = 0
     retry_delay = 5  # seconds
 

@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 # Global variables for tracking
 last_restart = datetime.now()
 error_count = 0
-MAX_ERRORS = 5  # Reduced from 10 to be more proactive
-RESTART_INTERVAL = timedelta(hours=12)  # Reduced from 24 to 12 hours for more frequent refreshes
+MAX_ERRORS = 3  # More aggressive error threshold
+RESTART_INTERVAL = timedelta(hours=6)  # More frequent restarts
 
 def run_flask():
     """Run Flask in a separate thread"""
@@ -42,6 +42,9 @@ def handle_exception(exc_type, exc_value, exc_traceback):
         return
 
     logger.error("Uncaught exception:", exc_info=(exc_type, exc_value, exc_traceback))
+
+    # Force restart on uncaught exceptions
+    os.execv(sys.executable, ['python'] + sys.argv)
 
 def signal_handler(signum, frame):
     """Handle termination signals"""
@@ -61,20 +64,16 @@ async def health_check():
                 logger.warning(f"High memory usage detected: {memory_usage}MB")
                 os.execv(sys.executable, ['python'] + sys.argv)
 
-            await asyncio.sleep(300)  # Check every 5 minutes
+            # Check uptime and force restart if needed
+            global last_restart
+            if datetime.now() - last_restart > RESTART_INTERVAL:
+                logger.info("Performing scheduled restart")
+                os.execv(sys.executable, ['python'] + sys.argv)
+
+            await asyncio.sleep(60)  # Check every minute
         except Exception as e:
             logger.error(f"Error in health check: {e}")
-            await asyncio.sleep(60)  # Wait a minute before retrying
-
-async def scheduled_restart():
-    """Perform scheduled restarts"""
-    while True:
-        try:
-            await asyncio.sleep(RESTART_INTERVAL.total_seconds())
-            logger.info("Performing scheduled restart")
-            os.execv(sys.executable, ['python'] + sys.argv)
-        except Exception as e:
-            logger.error(f"Error in scheduled restart: {e}")
+            await asyncio.sleep(30)  # Wait 30 seconds before retrying
 
 async def main():
     """Main async function to run both Flask and bot"""
@@ -95,13 +94,12 @@ async def main():
         flask_thread.start()
         logger.info("Flask admin interface started in background thread")
 
-        # Initialize and run bot in main thread
+        # Initialize and run bot
         logger.info("Starting Telegram bot...")
         bot = await init_bot()
         logger.info("Bot initialization completed")
 
-        # Start scheduled restart and health check tasks
-        asyncio.create_task(scheduled_restart())
+        # Start health check task
         asyncio.create_task(health_check())
 
         # Reset error count after successful start
