@@ -60,7 +60,7 @@ class TelegramQuizBot:
             bot = await context.bot.get_me()
             bot_username = bot.username
 
-            welcome_message = f"""🎯 Welcome to 𝓘𝓘𝓲 [{bot_username}](tg://user?id={bot.id}) 🇮🇳 𝓲𝓘𝓘 🎉
+            welcome_message = f"""🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁_𝗕𝗼𝘁 [{bot_username}](tg://user?id={bot.id}) 🇮🇳 ıII 🎉
 
 🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
 ➜ Auto Quizzes – Fresh quiz every 20 mins!
@@ -162,6 +162,7 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error getting categories: {e}")
             await update.message.reply_text("Error getting categories.")
+
 
 
 async def setup_bot(quiz_manager):
