@@ -419,7 +419,6 @@ class TelegramQuizBot:
             await update.message.reply_text("Error showing categories.")
 
 
-
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show user's personal stats"""
         try:
@@ -473,35 +472,36 @@ Use /help to see all available commands! 🎮"""
 • Correct Answers: {stats['total_correct']}
 • Group Accuracy: {stats['group_accuracy']}%
 
-👥 𝗔𝗰𝘁𝗶𝘃𝗲 𝗨𝘀𝗲𝗿𝘀
-• Today: {stats['active_users']['today']}
-• This Week: {stats['active_users']['week']}
-• This Month: {stats['active_users']['month']}
-• Total Members: {stats['active_users']['total']}
+👥 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗶𝗻𝗴
+• Active Today: {stats['active_users']['today']} users
+• Active This Week: {stats['active_users']['week']} users
+• Active This Month: {stats['active_users']['month']} users
+• Total Participants: {stats['active_users']['total']} users
 
-🏆 𝗚𝗿𝗼𝘂𝗽 𝗖𝗵𝗮𝗺𝗽𝗶𝗼𝗻𝘀"""
+🏆 𝗧𝗼𝗽 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗲𝗿𝘀"""
 
-            # Add user entries
-            for rank, entry in enumerate(stats['leaderboard'], 1):
+            # Add top performers
+            for rank, entry in enumerate(stats['leaderboard'][:5], 1):
                 try:
-                    # Get user info from Telegram
                     user = await context.bot.get_chat(entry['user_id'])
                     username = user.first_name or user.username or "Anonymous"
 
-                    stats_message += f"\n\n   🏅 {rank}. {username}"
-                    stats_message += f"\n      ✅ Attend: {entry['total_attempts']}"
-                    stats_message += f"\n      🎯 Correct: {entry['correct_answers']}"
-                    stats_message += f"\n      ❌ Wrong: {entry['wrong_answers']}"
-                    stats_message += f"\n      📊 Accuracy: {entry['accuracy']}%"
-                    stats_message += f"\n      📅 Last Active: {entry['last_active']}"
+                    stats_message += f"\n\n{rank}. {username}"
+                    stats_message += f"\n   ✅ Total: {entry['total_attempts']} quizzes"
+                    stats_message += f"\n   🎯 Correct: {entry['correct_answers']}"
+                    stats_message += f"\n   📊 Accuracy: {entry['accuracy']}%"
+                    stats_message += f"\n   🔥 Streak: {entry.get('current_streak', 0)}"
+                    stats_message += f"\n   ⚡ Last Active: {entry['last_active']}"
                 except Exception as e:
                     logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
                     continue
 
+            stats_message += "\n\n📱 Real-time stats | Auto-updates every 20 min"
             await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
+
         except Exception as e:
             logger.error(f"Error getting group stats: {e}")
-            await update.message.reply_text("Error retrieving group stats.")
+            await update.message.reply_text("Error retrieving group stats. Please try again.")
 
     async def leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show global leaderboard"""

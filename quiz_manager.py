@@ -215,6 +215,10 @@ class QuizManager:
                 total_group_quizzes += user_total_attempts
                 total_correct_answers += user_correct_answers
 
+                # Get daily activity stats
+                daily_stats = group_stats.get('daily_activity', {})
+                today_stats = daily_stats.get(today, {'attempts': 0, 'correct': 0})
+
                 leaderboard.append({
                     'user_id': int(user_id),
                     'total_attempts': user_total_attempts,
@@ -222,11 +226,15 @@ class QuizManager:
                     'wrong_answers': user_total_attempts - user_correct_answers,
                     'accuracy': round((user_correct_answers / user_total_attempts * 100) if user_total_attempts > 0 else 0, 1),
                     'score': group_stats.get('score', 0),
+                    'current_streak': group_stats.get('current_streak', 0),
+                    'longest_streak': group_stats.get('longest_streak', 0),
+                    'today_attempts': today_stats['attempts'],
+                    'today_correct': today_stats['correct'],
                     'last_active': group_stats.get('last_activity_date', 'Never')
                 })
 
-        # Sort leaderboard and calculate group accuracy
-        leaderboard.sort(key=lambda x: x['score'], reverse=True)
+        # Sort leaderboard by score and accuracy
+        leaderboard.sort(key=lambda x: (x['score'], x['accuracy']), reverse=True)
         group_accuracy = (total_correct_answers / total_group_quizzes * 100) if total_group_quizzes > 0 else 0
 
         return {
@@ -239,7 +247,7 @@ class QuizManager:
                 'month': len(active_users['month']),
                 'total': len(active_users['total'])
             },
-            'leaderboard': leaderboard[:10]
+            'leaderboard': leaderboard[:10]  # Top 10 performers
         }
 
     def record_group_attempt(self, user_id: int, chat_id: int, is_correct: bool) -> None:
