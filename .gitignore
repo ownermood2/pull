@@ -47,7 +47,11 @@ replit.nix
 # Project specific
 data/*.json
 !data/questions.json
+*.db
 
 # Logs
 *.log
 .pytest_cache/
+
+# Secrets
+.secrets
