@@ -87,7 +87,33 @@ class TelegramQuizBot:
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /help command"""
         try:
-            help_text = "Commands:\n/start - Activate quizzes\n/help - Show commands\n/score - Check your score\n/category - View available categories" #added category command
+            help_text = """🎯 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦 🎯   
+════════════════
+📝 𝗚𝗘𝗡𝗘𝗥𝗔𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
+/start – Begin your quiz journey  
+/help – Available commands  
+/category – View Topics
+/quiz – Try a quiz demo  
+/report – Flag incorrect questions  
+
+📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗  
+/mystats - Your Performance 
+/groupstats – Your group performance   
+/leaderboard – See champions  
+
+⚙️ 𝗔𝗗𝗠𝗜𝗡 𝗖𝗢𝗡𝗧𝗥𝗢𝗟𝗦  
+/reload –  Restart the bot    
+/settings – Customize bot preferences  
+
+🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
+/allreload – Full bot restart  
+/addquiz – Add new questions
+/globalstats – Bot stats   
+/editquiz – Modify  quizzes  
+/broadcast –  Send announcements  
+════════════════
+💡 Need Help? Use /help to explore all features! 🌟"""
+
             await update.message.reply_text(help_text)
         except Exception as e:
             logger.error(f"Error in help command: {e}")
