@@ -250,20 +250,8 @@ class QuizManager:
             }
         except Exception as e:
             logger.error(f"Error getting user stats for {user_id}: {str(e)}\n{traceback.format_exc()}")
-            return {
-                'total_quizzes': 0,
-                'correct_answers': 0,
-                'success_rate': 0.0,
-                'current_score': 0,
-                'today_attempts': 0,
-                'today_correct': 0,
-                'week_attempts': 0,
-                'week_correct': 0,
-                'month_attempts': 0,
-                'month_correct': 0,
-                'current_streak': 0,
-                'longest_streak': 0
-            }
+            self._init_user_stats(str(user_id))  # Initialize stats if they don't exist
+            return self.get_user_stats(user_id)  # Retry once with initialized stats
 
     def get_group_leaderboard(self, chat_id: int) -> Dict:
         """Get group-specific leaderboard with detailed analytics"""
