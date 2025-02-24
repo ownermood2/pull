@@ -467,6 +467,7 @@ class TelegramQuizBot:
             await update.message.reply_text("Error showing categories.")
 
 
+
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show user's personal stats"""
         try:
@@ -758,7 +759,7 @@ Use /help to see all available commands! 🎮"""
                 if any(
                     stats.get('last_quiz_date') ==current_date
                     for stats in self.quiz_manager.stats.values()
-                    if str(chat_id) in stats.get('groups', {})
+                                        if str(chat_id) in stats.get('groups', {})
                 )
             )
 
@@ -823,9 +824,20 @@ Use /help to see all available commands! 🎮"""
 
             logger.info(f"Processing /editquiz command from user {update.message.from_user.id}")
 
-            # Check if this is a reply to a quiz
+            # Get all questions for validation
+            questions = self.quiz_manager.get_all_questions()
+            if not questions:
+                await update.message.reply_text(
+                    """❌ 𝗡𝗼 𝗤𝘂𝗶𝘇𝘇𝗲𝘀 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲
+════════════════
+Add new quizzes using /addquiz command
+════════════════""",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return
+
+            # Handle reply to quiz case
             if update.message.reply_to_message and update.message.reply_to_message.poll:
-                # Handle reply to quiz
                 poll_id = update.message.reply_to_message.poll.id
                 poll_data = context.bot_data.get(f"poll_{poll_id}")
 
@@ -834,7 +846,6 @@ Use /help to see all available commands! 🎮"""
                     return
 
                 # Find the quiz in questions list
-                questions = self.quiz_manager.get_all_questions()
                 found_idx = -1
                 for idx, q in enumerate(questions):
                     if q['question'] == poll_data['question']:
@@ -870,18 +881,7 @@ To delete this quiz:
                 )
                 return
 
-            # Get all questions for normal listing
-            questions = self.quiz_manager.get_all_questions()
-            if not questions:
-                await update.message.reply_text(
-                    """❌ 𝗡𝗼 𝗤𝘂𝗶𝘇𝘇𝗲𝘀 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲
-════════════════
-Add new quizzes using /addquiz command
-════════════════""",
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                return
-
+            # Handle direct command case
             # Parse arguments for pagination
             args = context.args
             page = 1
@@ -1140,9 +1140,20 @@ Please try again later.
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Check if this is a reply to a quiz
+            # Get all questions for validation
+            questions = self.quiz_manager.get_all_questions()
+            if not questions:
+                await update.message.reply_text(
+                    """❌ 𝗡𝗼 𝗤𝘂𝗶𝘇𝘇𝗲𝘀 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲
+════════════════
+Add new quizzes using /addquiz command
+════════════════""",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return
+
+            # Handle reply to quiz case
             if update.message.reply_to_message and update.message.reply_to_message.poll:
-                # Handle reply to quiz
                 poll_id = update.message.reply_to_message.poll.id
                 poll_data = context.bot_data.get(f"poll_{poll_id}")
 
@@ -1151,7 +1162,6 @@ Please try again later.
                     return
 
                 # Find the quiz in questions list
-                questions = self.quiz_manager.get_all_questions()
                 found_idx = -1
                 for idx, q in enumerate(questions):
                     if q['question'] == poll_data['question']:
@@ -1190,15 +1200,14 @@ Use any other command or ignore this message
                 )
                 return
 
-            # Check if quiz number is provided
+            # Handle direct command case - check if quiz number is provided
             if not context.args:
                 await update.message.reply_text(
-                    """❌ 𝗤𝘂𝗶𝘇 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
+                    """❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗨𝘀𝗮𝗴𝗲
 ════════════════
-Please provide a quiz number to delete.
-
-📝 Usage:
-/delquiz [quiz_number]
+Either:
+1. Reply to a quiz message with /delquiz
+2. Use: /delquiz [quiz_number]
 
 ℹ️ Use /editquiz to view available quizzes
 ════════════════""",
@@ -1208,8 +1217,6 @@ Please provide a quiz number to delete.
 
             try:
                 quiz_num = int(context.args[0])
-                questions = self.quiz_manager.get_all_questions()
-
                 if not (1 <= quiz_num <= len(questions)):
                     await update.message.reply_text(
                         f"""❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗤𝘂𝗶𝘇 𝗡𝘂𝗺𝗯𝗲𝗿
@@ -1222,7 +1229,7 @@ Please choose a number between 1 and {len(questions)}
                     )
                     return
 
-                # Show quiz details and ask for confirmation
+                # Show confirmation message
                 quiz = questions[quiz_num - 1]
                 confirm_text = f"""🗑 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
 ════════════════
@@ -1235,10 +1242,10 @@ Please choose a number between 1 and {len(questions)}
                     marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
                     confirm_text += f"\n{marker} {i}. {opt}"
 
-                confirm_text += """
+                confirm_text += f"""
 
 ⚠️ 𝗧𝗼 𝗰𝗼𝗻𝗳𝗶𝗿𝗺 𝗱𝗲𝗹𝗲𝘁𝗶𝗼𝗻:
-/delquiz_confirm """ + str(quiz_num) + """
+/delquiz_confirm {quiz_num}
 
 ❌ 𝗧𝗼 𝗰𝗮𝗻𝗰𝗲𝗹:
 Use any other command or ignore this message
@@ -1379,6 +1386,240 @@ Use /help to see all commands."""
         except Exception as e:
             logger.error(f"Error in totalquiz command: {e}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error getting total quiz count.")
+
+    async def send_automated_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send automated quiz to all active group chats"""
+        try:
+            active_chats = self.quiz_manager.get_active_chats()
+            logger.info(f"Starting automated quiz broadcast to {len(active_chats)} active chats")
+
+            for chat_id in active_chats:
+                try:
+                    # Check if chat is a group and bot is admin
+                    chat = await context.bot.get_chat(chat_id)
+                    if chat.type not in ["group", "supergroup"]:
+                        logger.info(f"Skipping non-group chat {chat_id}")
+                        continue
+
+                    is_admin = await self.check_admin_status(chat_id, context)
+                    if not is_admin:
+                        logger.warning(f"Bot is not admin in chat {chat_id}, sending reminder")
+                        await self.send_admin_reminder(chat_id, context)
+                        continue
+
+                    # Send quiz directly without announcement
+                    await self.send_quiz(chat_id, context)
+                    logger.info(f"Successfully sent automated quiz to chat {chat_id}")
+
+                except Exception as e:
+                    logger.error(f"Failed to send automated quiz to chat {chat_id}: {str(e)}\n{traceback.format_exc()}")
+                    continue
+
+            logger.info("Completed automated quiz broadcast cycle")
+
+        except Exception as e:
+            logger.error(f"Error in automated quiz broadcast: {str(e)}\n{traceback.format_exc()}")
+
+    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send a quiz to a specific chat using native Telegram quiz format"""
+        try:
+            # First, try to delete the last quiz if it exists
+            try:
+                chat_history = self.command_history.get(chat_id, [])
+                if chat_history:
+                    last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
+                    if last_quiz:
+                        msg_id = int(last_quiz.split("_")[1])
+                        await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                        logger.info(f"Deleted previous quiz message {msg_id} in chat {chat_id}")
+            except Exception as e:
+                logger.warning(f"Failed to delete previous quiz: {e}")
+
+            # Get a random question for this specific chat
+            question = self.quiz_manager.get_random_question(chat_id)
+            if not question:
+                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
+                logger.warning(f"No questions available for chat {chat_id}")
+                return
+
+            # Ensure question text is clean
+            question_text = question['question'].strip()
+            if question_text.startswith('/addquiz'):
+                question_text = question_text[len('/addquiz'):].strip()
+                logger.info(f"Cleaned /addquiz prefix from question for chat {chat_id}")
+
+            logger.info(f"Sending quiz to chat {chat_id}. Question: {question_text[:50]}...")
+
+            # Send the poll
+            message = await context.bot.send_poll(
+                chat_id=chat_id,
+                question=question_text,  # Use cleaned question text
+                options=question['options'],
+                type=Poll.QUIZ,
+                correct_option_id=question['correct_answer'],
+                is_anonymous=False
+            )
+
+            if message and message.poll:
+                poll_data = {
+                    'chat_id': chat_id,
+                    'correct_option_id': question['correct_answer'],
+                    'user_answers': {},
+                    'poll_id': message.poll.id,
+                    'question': question_text,  # Store cleaned question text
+                    'timestamp': datetime.now().isoformat()
+                }
+                # Store using proper poll ID key
+                context.bot_data[f"poll_{message.poll.id}"] = poll_data
+                logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
+                self.command_history[chat_id].append(f"/quiz_{message.message_id}")
+
+        except Exception as e:
+            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
+            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
+
+    async def _handle_quiz_not_found(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle cases where quiz data is not found"""
+        await update.message.reply_text(
+            """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲
+════════════════
+This quiz message is too old or no longer exists.
+Please use /editquiz to view all available quizzes.
+════════════════""",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.warning(f"Quiz not found in reply-to message from user {update.message.from_user.id}")
+
+    async def _handle_invalid_quiz_reply(self, update: Update, context: ContextTypes.DEFAULT_TYPE, command: str) -> None:
+        """Handle invalid quiz reply messages"""
+        await update.message.reply_text(
+            f"""❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗥𝗲𝗽𝗹𝘆
+════════════════
+Please reply to a quiz message or use:
+/{command} [quiz_number]
+
+ℹ️ Use /editquiz to view all quizzes
+════════════════""",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.warning(f"Invalid quiz reply for {command} from user {update.message.from_user.id}")
+
+    async def send_automated_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send automated quiz to all active group chats"""
+        try:
+            active_chats = self.quiz_manager.get_active_chats()
+            logger.info(f"Starting automated quiz broadcast to {len(active_chats)} active chats")
+
+            for chat_id in active_chats:
+                try:
+                    # Check if chat is a group and bot is admin
+                    chat = await context.bot.get_chat(chat_id)
+                    if chat.type not in ["group", "supergroup"]:
+                        logger.info(f"Skipping non-group chat {chat_id}")
+                        continue
+
+                    is_admin = await self.check_admin_status(chat_id, context)
+                    if not is_admin:
+                        logger.warning(f"Bot is not admin in chat {chat_id}, sending reminder")
+                        await self.send_admin_reminder(chat_id, context)
+                        continue
+
+                    # Send quiz directly without announcement
+                    await self.send_quiz(chat_id, context)
+                    logger.info(f"Successfully sent automated quiz to chat {chat_id}")
+
+                except Exception as e:
+                    logger.error(f"Failed to send automated quiz to chat {chat_id}: {str(e)}\n{traceback.format_exc()}")
+                    continue
+
+            logger.info("Completed automated quiz broadcast cycle")
+
+        except Exception as e:
+            logger.error(f"Error in automated quiz broadcast: {str(e)}\n{traceback.format_exc()}")
+
+    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send a quiz to a specific chat using native Telegram quiz format"""
+        try:
+            # First, try to delete the last quiz if it exists
+            try:
+                chat_history = self.command_history.get(chat_id, [])
+                if chat_history:
+                    last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
+                    if last_quiz:
+                        msg_id = int(last_quiz.split("_")[1])
+                        await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                        logger.info(f"Deleted previous quiz message {msg_id} in chat {chat_id}")
+            except Exception as e:
+                logger.warning(f"Failed to delete previous quiz: {e}")
+
+            # Get a random question for this specific chat
+            question = self.quiz_manager.get_random_question(chat_id)
+            if not question:
+                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
+                logger.warning(f"No questions available for chat {chat_id}")
+                return
+
+            # Ensure question text is clean
+            question_text = question['question'].strip()
+            if question_text.startswith('/addquiz'):
+                question_text = question_text[len('/addquiz'):].strip()
+                logger.info(f"Cleaned /addquiz prefix from question for chat {chat_id}")
+
+            logger.info(f"Sending quiz to chat {chat_id}. Question: {question_text[:50]}...")
+
+            # Send the poll
+            message = await context.bot.send_poll(
+                chat_id=chat_id,
+                question=question_text,  # Use cleaned question text
+                options=question['options'],
+                type=Poll.QUIZ,
+                correct_option_id=question['correct_answer'],
+                is_anonymous=False
+            )
+
+            if message and message.poll:
+                poll_data = {
+                    'chat_id': chat_id,
+                    'correct_option_id': question['correct_answer'],
+                    'user_answers': {},
+                    'poll_id': message.poll.id,
+                    'question': question_text,  # Store cleaned question text
+                    'timestamp': datetime.now().isoformat()
+                }
+                # Store using proper poll ID key
+                context.bot_data[f"poll_{message.poll.id}"] = poll_data
+                logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
+                self.command_history[chat_id].append(f"/quiz_{message.message_id}")
+
+        except Exception as e:
+            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
+            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
+
+    async def _handle_quiz_not_found(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle cases where quiz data is not found"""
+        await update.message.reply_text(
+            """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲
+════════════════
+This quiz message is too old or no longer exists.
+Please use /editquiz to view all available quizzes.
+════════════════""",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.warning(f"Quiz not found in reply-to message from user {update.message.from_user.id}")
+
+    async def _handle_invalid_quiz_reply(self, update: Update, context: ContextTypes.DEFAULT_TYPE, command: str) -> None:
+        """Handle invalid quiz reply messages"""
+        await update.message.reply_text(
+            f"""❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗥𝗲𝗽𝗹𝘆
+════════════════
+Please reply to a quiz message or use:
+/{command} [quiz_number]
+
+ℹ️ Use /editquiz to view all quizzes
+════════════════""",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.warning(f"Invalid quiz reply for {command} from user {update.message.from_user.id}")
 
     async def send_automated_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send automated quiz to all active group chats"""
