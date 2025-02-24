@@ -20,40 +20,30 @@ class TelegramQuizBot:
     async def initialize(self, token: str):
         """Initialize and start the bot"""
         try:
-            logger.info("Starting bot initialization...")
-
             # Build application
             self.application = (
                 Application.builder()
                 .token(token)
                 .build()
             )
-            logger.info("Application built successfully")
 
             # Add handlers
             self.application.add_handler(CommandHandler("start", self.start))
             self.application.add_handler(CommandHandler("help", self.help))
             self.application.add_handler(CommandHandler("score", self.score))
             self.application.add_handler(CallbackQueryHandler(self.handle_answer, pattern="^quiz:"))
-            logger.info("Command handlers registered")
 
             # Schedule quiz every 20 minutes (1200 seconds)
             self.application.job_queue.run_repeating(
                 self.scheduled_quiz,
                 interval=1200,
-                first=10  # Start first quiz after 10 seconds
+                first=10
             )
-            logger.info("Quiz scheduler configured successfully")
 
             # Initialize and start polling
             await self.application.initialize()
             await self.application.start()
-            logger.info("Bot started successfully")
-
-            # Start polling in non-blocking mode
             await self.application.updater.start_polling()
-            logger.info("Bot polling started")
-
             return self
 
         except Exception as e:
@@ -64,75 +54,45 @@ class TelegramQuizBot:
         """Handle the /start command"""
         try:
             chat_id = update.effective_chat.id
-            logger.info(f"Received /start command in chat {chat_id}")
-
             self.quiz_manager.add_active_chat(chat_id)
 
-            welcome_message = """
-🎯 Welcome to QuizBot! 
-
-I'll be your quiz master, delivering exciting questions every 20 minutes.
-Get ready to test your knowledge and compete with other members!
-
-Commands:
-/start - Start the bot and enable quizzes in this chat
-/help - Show available commands
-/score - Check your score
-
-Let the quiz begin! 🎉
-            """
+            welcome_message = "Quiz Bot activated. Quizzes will be sent every 20 minutes.\nUse /help to see available commands."
             await update.message.reply_text(welcome_message)
-            logger.info(f"Sent welcome message to chat {chat_id}")
 
-            # Send first quiz immediately after start
+            # Send first quiz immediately
             await self.send_quiz(chat_id, context)
 
         except Exception as e:
             logger.error(f"Error in start command: {e}")
-            await update.message.reply_text("Sorry, there was an error processing your command. Please try again.")
+            await update.message.reply_text("Error starting the bot. Please try again.")
 
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /help command"""
         try:
-            help_text = """
-Available commands:
-/start - Start the bot and enable quizzes
-/help - Show this help message
-/score - Check your score
-            """
+            help_text = "Commands:\n/start - Activate quizzes\n/help - Show commands\n/score - Check your score"
             await update.message.reply_text(help_text)
-            logger.info(f"Sent help message to chat {update.effective_chat.id}")
         except Exception as e:
             logger.error(f"Error in help command: {e}")
-            await update.message.reply_text("Sorry, there was an error showing the help message.")
+            await update.message.reply_text("Error showing help. Please try again.")
 
     async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a quiz to a specific chat"""
         try:
-            logger.info(f"Sending quiz to chat: {chat_id}")
             question = self.quiz_manager.get_random_question()
-
             if not question:
-                logger.warning("No questions available in the database")
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text="No questions available at the moment!"
-                )
+                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
                 return
 
-            # Create inline keyboard with options
             keyboard = [
                 [InlineKeyboardButton(text=opt, callback_data=f"quiz:{i}")]
                 for i, opt in enumerate(question['options'])
             ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
 
             message = await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"🤔 {question['question']}",
-                reply_markup=reply_markup
+                text=question['question'],
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
-            logger.info(f"Quiz sent successfully to chat {chat_id}")
 
             self.active_quizzes[message.message_id] = {
                 'correct_answer': question['correct_answer'],
@@ -140,70 +100,57 @@ Available commands:
             }
 
         except Exception as e:
-            logger.error(f"Error sending quiz to chat {chat_id}: {e}")
-            try:
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text="Sorry, there was an error sending the quiz. Please try again later!"
-                )
-            except Exception as send_error:
-                logger.error(f"Failed to send error message to chat {chat_id}: {send_error}")
+            logger.error(f"Error sending quiz: {e}")
+            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
 
     async def handle_answer(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle quiz answer callbacks"""
         query = update.callback_query
-        user_id = query.from_user.id
-        quiz_id = query.message.message_id
-
         try:
+            quiz_id = query.message.message_id
+            user_id = query.from_user.id
+
             if quiz_id not in self.active_quizzes:
-                await query.answer("This quiz has expired!")
+                await query.answer("Quiz expired")
                 return
 
             quiz = self.active_quizzes[quiz_id]
             if user_id in quiz['participants']:
-                await query.answer("You've already answered!")
+                await query.answer("Already answered")
                 return
 
             selected_answer = int(query.data.split(':')[1])
             correct = selected_answer == quiz['correct_answer']
-
             quiz['participants'].add(user_id)
 
             if correct:
                 self.quiz_manager.increment_score(user_id)
-                await query.answer("✅ Correct!")
-                logger.info(f"User {user_id} answered correctly in chat {query.message.chat_id}")
+                await query.answer("Correct")
             else:
-                await query.answer("❌ Wrong answer!")
-                logger.info(f"User {user_id} answered incorrectly in chat {query.message.chat_id}")
+                await query.answer("Wrong")
 
         except Exception as e:
-            logger.error(f"Error handling answer from user {user_id}: {e}")
-            await query.answer("Sorry, there was an error processing your answer!")
+            logger.error(f"Error handling answer: {e}")
+            await query.answer("Error processing answer")
 
     async def score(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /score command"""
         try:
             user_id = update.message.from_user.id
             score = self.quiz_manager.get_score(user_id)
-            await update.message.reply_text(f"Your score: {score} points 🏆")
+            await update.message.reply_text(f"Your score: {score}")
         except Exception as e:
-            logger.error(f"Error getting score for user {update.message.from_user.id}: {e}")
-            await update.message.reply_text("Sorry, there was an error getting your score!")
+            logger.error(f"Error getting score: {e}")
+            await update.message.reply_text("Error getting score")
 
     async def scheduled_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send scheduled quizzes to all active chats"""
-        logger.info("Starting scheduled quiz distribution")
-        active_chats = self.quiz_manager.get_active_chats()
-        logger.info(f"Found {len(active_chats)} active chats")
-
-        for chat_id in active_chats:
-            try:
+        try:
+            active_chats = self.quiz_manager.get_active_chats()
+            for chat_id in active_chats:
                 await self.send_quiz(chat_id, context)
-            except Exception as e:
-                logger.error(f"Failed to send quiz to chat {chat_id}: {e}")
-
+        except Exception as e:
+            logger.error(f"Error in scheduled quiz: {e}")
 
 async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""
