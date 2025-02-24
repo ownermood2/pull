@@ -508,5 +508,465 @@
       "Munnar"
     ],
     "correct_answer": 0
+  },
+  {
+    "question": "Which is the oldest mountain range in India?",
+    "options": [
+      "Aravalli Range",
+      "Western Ghats",
+      "Himalayas",
+      "Vindhya Range"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Vice President of India?",
+    "options": [
+      "S. Radhakrishnan",
+      "Zakir Hussain",
+      "Rajendra Prasad",
+      "V. V. Giri"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which state is known as the \"Rice Bowl of India\"?",
+    "options": [
+      "West Bengal",
+      "Punjab",
+      "Andhra Pradesh",
+      "Chhattisgarh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Where is the Indian Military Academy (IMA) located?",
+    "options": [
+      "Pune",
+      "Dehradun",
+      "Chennai",
+      "Hyderabad"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian woman to win an Olympic medal?",
+    "options": [
+      "P. T. Usha",
+      "Saina Nehwal",
+      "Karnam Malleswari",
+      "Mary Kom"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the national flower of India?",
+    "options": [
+      "Rose",
+      "Marigold",
+      "Lotus",
+      "Sunflower"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian city is known as the \"City of Lakes\"?",
+    "options": [
+      "Jaipur",
+      "Udaipur",
+      "Bhopal",
+      "Mysore"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian to receive the Bharat Ratna?",
+    "options": [
+      "Jawaharlal Nehru",
+      "Dr. Rajendra Prasad",
+      "C. Rajagopalachari",
+      "S. Radhakrishnan"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the name of India's first indigenous supercomputer?",
+    "options": [
+      "Prithvi",
+      "Param 8000",
+      "Shakti",
+      "Vikram"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which state is the largest producer of coffee in India?",
+    "options": [
+      "Tamil Nadu",
+      "Kerala",
+      "Karnataka",
+      "Assam"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the longest national highway in India?",
+    "options": [
+      "NH-1",
+      "NH-44",
+      "NH-48",
+      "NH-16"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian woman to climb Mount Everest?",
+    "options": [
+      "Bachendri Pal",
+      "Santosh Yadav",
+      "Arunima Sinha",
+      "Deepa Malik"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Where is India's largest port located?",
+    "options": [
+      "Mumbai",
+      "Chennai",
+      "Visakhapatnam",
+      "Kochi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who wrote the book \"Train to Pakistan\"?",
+    "options": [
+      "R. K. Narayan",
+      "Salman Rushdie",
+      "Vikram Seth",
+      "Khushwant Singh"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Which gas is most abundant in Earth's atmosphere?",
+    "options": [
+      "Oxygen",
+      "Carbon Dioxide",
+      "Nitrogen",
+      "Hydrogen"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian to travel in space?",
+    "options": [
+      "Kalpana Chawla",
+      "Sunita Williams",
+      "Rakesh Sharma",
+      "Vikram Sarabhai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the largest saltwater lake in India?",
+    "options": [
+      "Chilika Lake",
+      "Sambhar Lake",
+      "Wular Lake",
+      "Pulicat Lake"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian state is the largest producer of wheat?",
+    "options": [
+      "Punjab",
+      "Haryana",
+      "Madhya Pradesh",
+      "Uttar Pradesh"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "What is the full form of GDP?",
+    "options": [
+      "Gross Domestic Product",
+      "General Development Programme",
+      "Gross Direct Profit",
+      "Government Development Plan"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What does 'RBI' stand for?",
+    "options": [
+      "Reserve Bank of India",
+      "Rural Bank of India",
+      "Regional Bank of India",
+      "Revenue Board of India"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian monument is known as the \"Black Taj Mahal\"?",
+    "options": [
+      "Bibi Ka Maqbara",
+      "Gol Gumbaz",
+      "Charminar",
+      "Victoria Memorial"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Where is the headquarters of ISRO located?",
+    "options": [
+      "Mumbai",
+      "Bengaluru",
+      "Hyderabad",
+      "Chennai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which freedom fighter is known as the \"Frontier Gandhi\"?",
+    "options": [
+      "Bhagat Singh",
+      "Subhas Chandra Bose",
+      "Khan Abdul Ghaffar Khan",
+      "Lala Lajpat Rai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the last Governor-General of independent India?",
+    "options": [
+      "Lord Mountbatten",
+      "Rajendra Prasad",
+      "C. Rajagopalachari",
+      "Sardar Patel"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the state animal of Madhya Pradesh?",
+    "options": [
+      "Tiger",
+      "Lion",
+      "Leopard",
+      "Barasingha"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Which is the largest desert in India?",
+    "options": [
+      "Thar Desert",
+      "Rann of Kutch",
+      "Spiti Valley",
+      "Deccan Plateau"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first recipient of the Dadasaheb Phalke Award?",
+    "options": [
+      "Raj Kapoor",
+      "Devika Rani",
+      "Lata Mangeshkar",
+      "Dilip Kumar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the first nuclear power plant in India?",
+    "options": [
+      "Kaiga",
+      "Kudankulam",
+      "Tarapur",
+      "Narora"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian to win a Grammy Award?",
+    "options": [
+      "Pandit Ravi Shankar",
+      "Zakir Hussain",
+      "A.R. Rahman",
+      "L. Subramaniam"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the capital of Lakshadweep?",
+    "options": [
+      "Kavaratti",
+      "Port Blair",
+      "Daman",
+      "Silvassa"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which river is known as the \"Sorrow of Bihar\"?",
+    "options": [
+      "Yamuna",
+      "Kosi",
+      "Brahmaputra",
+      "Gandak"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the founder of the Indian National Army (INA)?",
+    "options": [
+      "Subhas Chandra Bose",
+      "Bhagat Singh",
+      "Lala Lajpat Rai",
+      "Rajguru"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian state has the highest population?",
+    "options": [
+      "Maharashtra",
+      "Bihar",
+      "West Bengal",
+      "Uttar Pradesh"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Who was the first Indian to win the Nobel Prize in Physics?",
+    "options": [
+      "C.V. Raman",
+      "Satyendra Nath Bose",
+      "Homi Bhabha",
+      "Vikram Sarabhai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the national reptile of India?",
+    "options": [
+      "Crocodile",
+      "Cobra",
+      "Monitor Lizard",
+      "Turtle"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "In which year was the first Lok Sabha election held?",
+    "options": [
+      "1947",
+      "1952",
+      "1950",
+      "1955"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who is the founder of Arya Samaj?",
+    "options": [
+      "Swami Vivekananda",
+      "Swami Dayanand Saraswati",
+      "Raja Ram Mohan Roy",
+      "Guru Nanak"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the highest waterfall in India?",
+    "options": [
+      "Jog Falls",
+      "Nohkalikai Falls",
+      "Dudhsagar Falls",
+      "Kunchikal Falls"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "What is the rank of India in terms of land area in the world?",
+    "options": [
+      "3rd",
+      "5th",
+      "7th",
+      "9th"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Where is the headquarters of the World Health Organization (WHO)?",
+    "options": [
+      "Geneva",
+      "New York",
+      "Paris",
+      "Rome"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the official language of Goa?",
+    "options": [
+      "Marathi",
+      "Konkani",
+      "Kannada",
+      "Hindi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which city is known as the \"Manchester of India\"?",
+    "options": [
+      "Ahmedabad",
+      "Surat",
+      "Mumbai",
+      "Ludhiana"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who composed the famous song \"Sare Jahan Se Achha\"?",
+    "options": [
+      "Bankim Chandra Chatterjee",
+      "Rabindranath Tagore",
+      "Muhammad Iqbal",
+      "Mahatma Gandhi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the main ingredient of LPG gas?",
+    "options": [
+      "Methane",
+      "Propane",
+      "Ethane",
+      "Butane"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "What is the full form of BCCI?",
+    "options": [
+      "Board of Control for Cricket in India",
+      "Bureau of Cricket Control of India",
+      "Bharat Cricket Club of India",
+      "Best Cricket Council of India"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the most spoken language in India?",
+    "options": [
+      "Hindi",
+      "Bengali",
+      "Telugu",
+      "Tamil"
+    ],
+    "correct_answer": 0
   }
 ]
