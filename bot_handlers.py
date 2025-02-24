@@ -176,14 +176,29 @@ class TelegramQuizBot:
     async def category(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /category command"""
         try:
-            categories = self.quiz_manager.get_categories() #Assumed method in quiz_manager
-            if categories:
-                await update.message.reply_text(f"Available Categories:\n{', '.join(categories)}")
-            else:
-                await update.message.reply_text("No categories available.")
+            category_text = """📚 𝗩𝗜𝗘𝗪 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦  
+══════════════════  
+📑 𝗔𝗩𝗔𝗜𝗟𝗔𝗕𝗟𝗘 𝗤𝗨𝗜𝗭 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦  
+• General Knowledge 🌍
+• Current Affairs 📰
+• Static GK 📚
+• Science & Technology 🔬
+• History 📜
+• Geography 🗺
+• Economics 💰
+• Political Science 🏛
+• Constitution 📖
+• Constitution & Law ⚖
+• Arts & Literature 🎭
+• Sports & Games 🎮  
+
+🎯 Stay tuned! More quizzes coming soon!  
+🛠 Need help? Use /help for more commands!"""
+
+            await update.message.reply_text(category_text)
         except Exception as e:
             logger.error(f"Error getting categories: {e}")
-            await update.message.reply_text("Error getting categories.")
+            await update.message.reply_text("Error showing categories.")
 
 
 
