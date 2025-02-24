@@ -12,8 +12,44 @@ logger = logging.getLogger(__name__)
 
 class TelegramQuizBot:
     def __init__(self, quiz_manager):
+        """Initialize the quiz bot"""
         self.quiz_manager = quiz_manager
         self.active_quizzes = {}
+        self.application = None
+
+    async def initialize(self, token: str):
+        """Initialize and start the bot"""
+        try:
+            # Build application
+            self.application = (
+                Application.builder()
+                .token(token)
+                .build()
+            )
+
+            # Add handlers
+            self.application.add_handler(CommandHandler("start", self.start))
+            self.application.add_handler(CommandHandler("help", self.help))
+            self.application.add_handler(CommandHandler("score", self.score))
+            self.application.add_handler(CallbackQueryHandler(self.handle_answer, pattern="^quiz:"))
+
+            # Schedule quiz every 20 minutes (1200 seconds)
+            self.application.job_queue.run_repeating(
+                self.scheduled_quiz,
+                interval=1200,
+                first=10  # Start first quiz after 10 seconds
+            )
+            logger.info("Quiz scheduler configured successfully")
+
+            # Start polling
+            await self.application.initialize()
+            await self.application.start()
+            logger.info("Bot initialized successfully")
+            await self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+        except Exception as e:
+            logger.error(f"Failed to initialize bot: {e}")
+            raise
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /start command"""
@@ -132,55 +168,33 @@ Available commands:
             logger.error(f"Error getting score for user {update.message.from_user.id}: {e}")
             await update.message.reply_text("Sorry, there was an error getting your score!")
 
+    async def scheduled_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send scheduled quizzes to all active chats"""
+        logger.info("Starting scheduled quiz distribution")
+        active_chats = self.quiz_manager.get_active_chats()
+        logger.info(f"Found {len(active_chats)} active chats")
+
+        for chat_id in active_chats:
+            try:
+                await self.send_quiz(chat_id, context)
+            except Exception as e:
+                logger.error(f"Failed to send quiz to chat {chat_id}: {e}")
+
+
 async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""
-    logger.info("Initializing Telegram bot...")
-
-    # Verify token
-    token = os.environ.get("TELEGRAM_TOKEN")
-    if not token:
-        logger.error("TELEGRAM_TOKEN not found in environment variables")
-        raise ValueError("TELEGRAM_TOKEN environment variable is required")
-
+    logger.info("Setting up Telegram bot...")
     try:
         # Create bot instance
         bot = TelegramQuizBot(quiz_manager)
 
-        # Initialize application
-        application = Application.builder().token(token).build()
+        # Get bot token
+        token = os.environ.get("TELEGRAM_TOKEN")
+        if not token:
+            raise ValueError("TELEGRAM_TOKEN environment variable is required")
 
-        # Add command handlers
-        application.add_handler(CommandHandler("start", bot.start))
-        application.add_handler(CommandHandler("help", bot.help))
-        application.add_handler(CommandHandler("score", bot.score))
-        application.add_handler(CallbackQueryHandler(bot.handle_answer, pattern="^quiz:"))
-
-        # Set up quiz scheduler
-        async def scheduled_quiz(context: ContextTypes.DEFAULT_TYPE) -> None:
-            logger.info("Starting scheduled quiz distribution")
-            active_chats = quiz_manager.get_active_chats()
-            logger.info(f"Found {len(active_chats)} active chats")
-
-            for chat_id in active_chats:
-                try:
-                    await bot.send_quiz(chat_id, context)
-                except Exception as e:
-                    logger.error(f"Failed to send quiz to chat {chat_id}: {e}")
-
-        # Schedule quiz every 20 minutes (1200 seconds)
-        application.job_queue.run_repeating(
-            scheduled_quiz,
-            interval=1200,
-            first=10  # Start first quiz after 10 seconds
-        )
-        logger.info("Quiz scheduler configured successfully")
-
-        # Initialize and start application
-        logger.info("Starting Telegram bot application")
-        await application.initialize()
-        await application.start()
-        await application.run_polling(allowed_updates=Update.ALL_TYPES)
-
+        # Initialize and start the bot
+        await bot.initialize(token)
         return bot
 
     except Exception as e:

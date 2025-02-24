@@ -1,7 +1,5 @@
 import os
 import logging
-import asyncio
-import threading
 from flask import Flask, render_template, jsonify, request
 
 # Configure logging
@@ -21,16 +19,25 @@ except Exception as e:
     logger.error(f"Failed to initialize Quiz Manager: {e}")
     raise
 
-# Setup Telegram Bot handlers (lazy loading to avoid circular imports)
+# Setup Telegram Bot handlers
 telegram_bot = None
 
 async def init_bot():
     """Initialize and start the Telegram bot"""
     global telegram_bot
     try:
-        from bot_handlers import setup_bot
-        telegram_bot = await setup_bot(quiz_manager)
-        logger.info("Telegram bot handlers initialized successfully")
+        from bot_handlers import TelegramQuizBot
+
+        # Get bot token
+        token = os.environ.get("TELEGRAM_TOKEN")
+        if not token:
+            raise ValueError("TELEGRAM_TOKEN environment variable is required")
+
+        # Initialize bot
+        telegram_bot = TelegramQuizBot(quiz_manager)
+        await telegram_bot.initialize(token)
+
+        logger.info("Telegram bot initialized successfully")
         return telegram_bot
     except Exception as e:
         logger.error(f"Failed to initialize Telegram bot: {e}")
@@ -59,23 +66,10 @@ def delete_question(question_id):
     quiz_manager.delete_question(question_id)
     return jsonify({"status": "success"})
 
-def run_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(init_bot())
-        logger.info("Telegram bot started successfully.")
-    except Exception as e:
-        logger.exception(f"Telegram bot startup failed: {e}")
-    finally:
-        loop.close()
-
-
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True  # Allow the main thread to exit even if the bot thread is running
-    bot_thread.start()
     try:
+        import asyncio
+        asyncio.run(init_bot()) #added this line to run the bot initialization
         app.run(host="0.0.0.0", port=5000, debug=True)
     except Exception as e:
         logger.exception(f"Application startup failed: {e}")
