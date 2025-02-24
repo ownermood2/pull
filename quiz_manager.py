@@ -375,13 +375,90 @@ class QuizManager:
 
         self.save_data()
 
-    def add_question(self, question: str, options: List[str], correct_answer: int):
-        self.questions.append({
-            'question': question,
-            'options': options,
-            'correct_answer': correct_answer
-        })
-        self.save_data()
+    def add_questions(self, questions_data: List[Dict]) -> Dict:
+        """Add multiple questions with validation and duplicate detection
+
+        Args:
+            questions_data: List of question dictionaries with format:
+                {
+                    'question': str,
+                    'options': List[str],
+                    'correct_answer': int
+                }
+
+        Returns:
+            Dict with stats about added/rejected questions
+        """
+        stats = {
+            'added': 0,
+            'rejected': {
+                'duplicates': 0,
+                'invalid_format': 0,
+                'invalid_options': 0
+            },
+            'errors': []
+        }
+
+        if len(questions_data) > 500:
+            stats['errors'].append("Maximum 500 questions allowed at once")
+            return stats
+
+        # Create a set of existing questions for duplicate checking
+        existing_questions = {q['question'].lower().strip() for q in self.questions}
+
+        for question_data in questions_data:
+            try:
+                # Basic format validation
+                if not all(key in question_data for key in ['question', 'options', 'correct_answer']):
+                    stats['rejected']['invalid_format'] += 1
+                    stats['errors'].append(f"Invalid format for question: {question_data.get('question', 'Unknown')}")
+                    continue
+
+                question = question_data['question'].strip()
+                options = [opt.strip() for opt in question_data['options']]
+                correct_answer = question_data['correct_answer']
+
+                # Validate question text
+                if not question or len(question) < 5:
+                    stats['rejected']['invalid_format'] += 1
+                    stats['errors'].append(f"Question text too short: {question}")
+                    continue
+
+                # Check for duplicates
+                if question.lower() in existing_questions:
+                    stats['rejected']['duplicates'] += 1
+                    stats['errors'].append(f"Duplicate question: {question}")
+                    continue
+
+                # Validate options
+                if len(options) != 4 or not all(opt for opt in options):
+                    stats['rejected']['invalid_options'] += 1
+                    stats['errors'].append(f"Invalid options for question: {question}")
+                    continue
+
+                # Validate correct answer index
+                if not isinstance(correct_answer, int) or not (0 <= correct_answer < 4):
+                    stats['rejected']['invalid_format'] += 1
+                    stats['errors'].append(f"Invalid correct answer index for question: {question}")
+                    continue
+
+                # Add valid question
+                self.questions.append({
+                    'question': question,
+                    'options': options,
+                    'correct_answer': correct_answer
+                })
+                existing_questions.add(question.lower())
+                stats['added'] += 1
+
+            except Exception as e:
+                logger.error(f"Error processing question: {str(e)}")
+                stats['errors'].append(f"Unexpected error: {str(e)}")
+
+        if stats['added'] > 0:
+            self.save_data()
+
+        return stats
 
     def delete_question(self, index: int):
         if 0 <= index < len(self.questions):

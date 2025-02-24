@@ -422,38 +422,128 @@ Use /help to see all available commands! 🎮"""
             await update.message.reply_text("❌ Error restarting bot.")
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Add new quiz - Developer only"""
+        """Add new quiz(zes) - Developer only
+        Format for single question:
+        /addquiz question | option1 | option2 | option3 | option4 | correct_number
+
+        Format for multiple questions:
+        /addquiz
+        Q: question1
+        1. option1
+        2. option2
+        3. option3
+        4. option4
+        A: correct_number
+
+        Q: question2
+        ...etc
+        """
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await update.message.reply_text("This command is for developers only.")
                 return
 
-            # Extract question details from command
-            try:
-                # Format: /addquiz question | option1 | option2 | option3 | option4 | correct_index
-                parts = update.message.text.split(" ", 1)[1].split("|")
+            # Extract message content
+            content = update.message.text.split(" ", 1)
+            if len(content) < 2:
+                await update.message.reply_text(
+                    "❌ Please provide questions in the correct format.\n\n"
+                    "For single question:\n"
+                    "/addquiz question | option1 | option2 | option3 | option4 | correct_number\n\n"
+                    "For multiple questions:\n"
+                    "/addquiz\n"
+                    "Q: What is the capital of France?\n"
+                    "1. London\n"
+                    "2. Paris\n"
+                    "3. Berlin\n"
+                    "4. Madrid\n"
+                    "A: 2\n\n"
+                    "Q: Next question...\n"
+                    "..."
+                )
+                return
+
+            questions_data = []
+            message_text = content[1].strip()
+
+            # Check if it's the single question format (using |)
+            if "|" in message_text:
+                parts = message_text.split("|")
                 if len(parts) != 6:
-                    raise ValueError
+                    await update.message.reply_text("❌ Invalid format for single question")
+                    return
 
-                question = parts[0].strip()
-                options = [opt.strip() for opt in parts[1:5]]
-                correct_answer = int(parts[5].strip()) - 1  # Convert to 0-based index
+                questions_data.append({
+                    'question': parts[0].strip(),
+                    'options': [p.strip() for p in parts[1:5]],
+                    'correct_answer': int(parts[5].strip()) - 1
+                })
+            else:
+                # Multiple questions format
+                current_question = None
+                current_options = []
 
-                if not (0 <= correct_answer < 4):
-                    raise ValueError
+                for line in message_text.split('\n'):
+                    line = line.strip()
+                    if not line:
+                        continue
 
-                self.quiz_manager.add_question(question, options, correct_answer)
+                    if line.startswith('Q:'):
+                        # Save previous question if exists
+                        if current_question is not None and len(current_options) == 4:
+                            questions_data.append({
+                                'question': current_question,
+                                'options': current_options,
+                                'correct_answer': None  # Will be set when we find 'A:'
+                            })
+                        current_question = line[2:].strip()
+                        current_options = []
+                    elif line.startswith(('1.', '2.', '3.', '4.')):
+                        if current_question is not None:
+                            current_options.append(line[2:].strip())
+                    elif line.startswith('A:'):
+                        if current_question is not None and len(current_options) == 4:
+                            try:
+                                correct_answer = int(line[2:].strip()) - 1
+                                if 0 <= correct_answer < 4:
+                                    questions_data.append({
+                                        'question': current_question,
+                                        'options': current_options,
+                                        'correct_answer': correct_answer
+                                    })
+                            except ValueError:
+                                pass
+                        current_question = None
+                        current_options = []
+
+            if not questions_data:
                 await update.message.reply_text(
-                    "✅ Quiz added successfully!\n\n"
-                    f"Question: {question}\n"
-                    f"Options: {', '.join(options)}\n"
-                    f"Correct Answer: Option {correct_answer + 1}"
+                    "❌ No valid questions found in the input.\n"
+                    "Please check the format and try again."
                 )
-            except (IndexError, ValueError):
-                await update.message.reply_text(
-                    "❌ Invalid format! Use:\n"
-                    "/addquiz question | option1 | option2 | option3 | option4 | correct_number"
-                )
+                return
+
+            # Add questions and get stats
+            stats = self.quiz_manager.add_questions(questions_data)
+
+            # Prepare response message
+            response = f"""📝 𝗤𝘂𝗶𝘇 𝗔𝗱𝗱𝗶𝘁𝗶𝗼𝗻 𝗥𝗲𝗽𝗼𝗿𝘁
+════════════════
+✅ Successfully added: {stats['added']} questions
+
+❌ 𝗥𝗲𝗷𝗲𝗰𝘁𝗲𝗱:
+• Duplicates: {stats['rejected']['duplicates']}
+• Invalid Format: {stats['rejected']['invalid_format']}
+• Invalid Options: {stats['rejected']['invalid_options']}"""
+
+            if stats['errors']:
+                response += "\n\n⚠️ 𝗘𝗿𝗿𝗼𝗿𝘀:"
+                for error in stats['errors'][:5]:  # Show first 5 errors
+                    response += f"\n• {error}"
+                if len(stats['errors']) > 5:
+                    response += f"\n• ...and {len(stats['errors']) - 5} more errors"
+
+            await update.message.reply_text(response)
 
         except Exception as e:
             logger.error(f"Error in addquiz: {e}")
@@ -522,13 +612,13 @@ Use /help to see all available commands! 🎮"""
 👤 Total Users: {total_users}  
 👥 Active Groups Today: {active_groups_today}  
 👤 Active Users Today: {active_users_today}  
-
+            
 ⚡ 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗲𝗿
 📅 Quizzes Sent Today: {today_quizzes}  
 📆 This Week: {week_quizzes}  
 📊 This Month: {month_quizzes}  
 📌 All Time: {all_time_quizzes}  
-
+            
 🚀 Keep the competition going! Use /help to explore more commands! 🎮"""
 
             await update.message.reply_text(stats_message)
