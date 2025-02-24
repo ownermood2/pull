@@ -634,23 +634,20 @@ Use /help to see all available commands! 🎮"""
 
             # Add questions and get stats
             stats = self.quiz_manager.add_questions(questions_data)
+            total_questions = len(self.quiz_manager.get_all_questions())
 
-            # Prepare response message
+            # Format response message
             response = f"""📝 𝗤𝘂𝗶𝘇 𝗔𝗱𝗱𝗶𝘁𝗶𝗼𝗻 𝗥𝗲𝗽𝗼𝗿𝘁
 ════════════════
 ✅ Successfully added: {stats['added']} questions
 
+👉 𝗧𝗼𝘁𝗮𝗹 𝗤𝘂𝗶𝘇: {total_questions}
+
 ❌ 𝗥𝗲𝗷𝗲𝗰𝘁𝗲𝗱:
 • Duplicates: {stats['rejected']['duplicates']}
 • Invalid Format: {stats['rejected']['invalid_format']}
-• Invalid Options: {stats['rejected']['invalid_options']}"""
-
-            if stats['errors']:
-                response += "\n\n⚠️ 𝗘𝗿𝗿𝗼𝗿𝘀:"
-                for error in stats['errors'][:5]:  # Show first 5 errors
-                    response += f"\n• {error}"
-                if len(stats['errors']) > 5:
-                    response += f"\n• ...and {len(stats['errors']) - 5} more errors"
+• Invalid Options: {stats['rejected']['invalid_options']}
+════════════════"""
 
             await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
 
