@@ -757,7 +757,7 @@ Use /help to see all available commands! 🎮"""
             active_groups_today = sum(
                 1 for chat_id in active_chats
                 if any(
-                    stats.get('last_quiz_date') == current_date
+                    stats.get('last_quiz_date') ==current_date
                     for stats in self.quiz_manager.stats.values()
                     if str(chat_id) in stats.get('groups', {})
                 )
@@ -824,7 +824,67 @@ Use /help to see all available commands! 🎮"""
 
             logger.info(f"Processing /editquiz command from user {update.message.from_user.id}")
 
-            # Get all questions
+            # Check if this is a reply to a quiz
+            if update.message.reply_to_message and update.message.reply_to_message.poll:
+                # Handle reply to quiz
+                poll_id = update.message.reply_to_message.poll.id
+                poll_data = context.bot_data.get(f"poll_{poll_id}")
+
+                if not poll_data:
+                    await update.message.reply_text(
+                        """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗙𝗼𝘂𝗻𝗱
+════════════════
+Cannot find this quiz in the database.
+Try using /editquiz to view all quizzes.
+════════════════""",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    return
+
+                # Find the quiz in questions list
+                questions = self.quiz_manager.get_all_questions()
+                found_idx = -1
+                for idx, q in enumerate(questions):
+                    if q['question'] == poll_data['question']:
+                        found_idx = idx
+                        break
+
+                if found_idx == -1:
+                    await update.message.reply_text(
+                        """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗙𝗼𝘂𝗻𝗱
+════════════════
+This quiz no longer exists in the database.
+════════════════""",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    return
+
+                # Show the quiz details
+                quiz = questions[found_idx]
+                quiz_text = f"""📝 𝗤𝘂𝗶𝘇 𝗗𝗲𝘁𝗮𝗶𝗹𝘀 (#{found_idx + 1})
+════════════════
+
+❓ Question: {quiz['question']}
+📍 Options:"""
+                for i, opt in enumerate(quiz['options'], 1):
+                    marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
+                    quiz_text += f"\n{marker} {i}. {opt}"
+
+                quiz_text += """
+════════════════
+
+To edit this quiz:
+/editquiz {quiz_number}
+To delete this quiz:
+/delquiz {quiz_number}"""
+
+                await update.message.reply_text(
+                    quiz_text,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return
+
+            # Get all questions for normal listing
             questions = self.quiz_manager.get_all_questions()
             if not questions:
                 await update.message.reply_text(
@@ -1092,6 +1152,69 @@ Please try again later.
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
+                return
+
+            # Check if this is a reply to a quiz
+            if update.message.reply_to_message and update.message.reply_to_message.poll:
+                # Handle reply to quiz
+                poll_id = update.message.reply_to_message.poll.id
+                poll_data = context.bot_data.get(f"poll_{poll_id}")
+
+                if not poll_data:
+                    await update.message.reply_text(
+                        """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗙𝗼𝘂𝗻𝗱
+════════════════
+Cannot find this quiz in the database.
+Try using /editquiz to view all quizzes.
+════════════════""",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    return
+
+                # Find the quiz in questions list
+                questions = self.quiz_manager.get_all_questions()
+                found_idx = -1
+                for idx, q in enumerate(questions):
+                    if q['question'] == poll_data['question']:
+                        found_idx = idx
+                        break
+
+                if found_idx == -1:
+                    await update.message.reply_text(
+                        """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗙𝗼𝘂𝗻𝗱
+════════════════
+This quiz no longer exists in the database.
+════════════════""",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    return
+
+                # Show confirmation message
+                quiz = questions[found_idx]
+                confirm_text = f"""🗑 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
+════════════════
+
+📌 𝗤𝘂𝗶𝘇 #{found_idx + 1}
+❓ Question: {quiz['question']}
+
+📍 𝗢𝗽𝘁𝗶𝗼𝗻𝘀:"""
+                for i, opt in enumerate(quiz['options'], 1):
+                    marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
+                    confirm_text += f"\n{marker} {i}. {opt}"
+
+                confirm_text += f"""
+
+⚠️ 𝗧𝗼 𝗰𝗼𝗻𝗳𝗶𝗿𝗺 𝗱𝗲𝗹𝗲𝘁𝗶𝗼𝗻:
+/delquiz_confirm {found_idx + 1}
+
+❌ 𝗧𝗼 𝗰𝗮𝗻𝗰𝗲𝗹:
+Use any other command or ignore this message
+════════════════"""
+
+                await update.message.reply_text(
+                    confirm_text,
+                    parse_mode=ParseMode.MARKDOWN
+                )
                 return
 
             # Check if quiz number is provided
