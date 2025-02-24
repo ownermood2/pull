@@ -194,7 +194,7 @@ class TelegramQuizBot:
             # Schedule automated quiz job
             self.application.job_queue.run_repeating(
                 self.send_automated_quiz,
-                interval=300,  # 5 minutes for testing (changed from 1200)
+                interval=1200,  # 20 minutes in seconds
                 first=10  # Start first quiz after 10 seconds
             )
 
