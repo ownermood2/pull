@@ -1,7 +1,8 @@
 import os
 import logging
+import asyncio
+import threading
 from flask import Flask, render_template, jsonify, request
-from flask_sqlalchemy import SQLAlchemy
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -58,7 +59,23 @@ def delete_question(question_id):
     quiz_manager.delete_question(question_id)
     return jsonify({"status": "success"})
 
+def run_bot():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(init_bot())
+        logger.info("Telegram bot started successfully.")
+    except Exception as e:
+        logger.exception(f"Telegram bot startup failed: {e}")
+    finally:
+        loop.close()
+
+
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(init_bot())
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    bot_thread = threading.Thread(target=run_bot)
+    bot_thread.daemon = True  # Allow the main thread to exit even if the bot thread is running
+    bot_thread.start()
+    try:
+        app.run(host="0.0.0.0", port=5000, debug=True)
+    except Exception as e:
+        logger.exception(f"Application startup failed: {e}")
