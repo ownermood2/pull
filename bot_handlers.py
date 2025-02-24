@@ -1104,19 +1104,23 @@ Use /editquiz to view remaining questions
                 await self._handle_dev_command_unauthorized(update)
                 return
 
+            # Force reload questions
             total_questions = len(self.quiz_manager.get_all_questions())
+            logger.info(f"Total questions count: {total_questions}")
 
             response = f"""📊 𝗤𝘂𝗶𝘇 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
 ════════════════
-📚 Total Quizzes: {total_questions}
+📚 Total Quizzes Available: {total_questions}
 ════════════════
 
-Use /addquiz to add more quizzes!"""
+Use /addquiz to add more quizzes!
+Use /help to see all commands."""
 
             await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
+            logger.info(f"Sent quiz count to user {update.message.from_user.id}")
 
         except Exception as e:
-            logger.error(f"Error in totalquiz command: {e}")
+            logger.error(f"Error in totalquiz command: {e}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error getting total quiz count.")
 
 async def setup_bot(quiz_manager):

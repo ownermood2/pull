@@ -511,7 +511,16 @@ class QuizManager:
             self.save_data()
 
     def get_all_questions(self) -> List[Dict]:
-        return self.questions
+        """Get all questions with proper loading"""
+        try:
+            # Reload questions from file to ensure we have latest data
+            with open(self.questions_file, 'r') as f:
+                self.questions = json.load(f)
+            logger.info(f"Loaded {len(self.questions)} questions from file")
+            return self.questions
+        except Exception as e:
+            logger.error(f"Error loading questions: {e}")
+            return self.questions  # Return cached questions as fallback
 
     def increment_score(self, user_id: int):
         """Increment user's score and synchronize with statistics"""
