@@ -57,7 +57,7 @@
       "Rajasthan",
       "Uttar Pradesh"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "Which Indian city is known as the 'Pink City'?",
@@ -87,7 +87,7 @@
       "Lion",
       "Tiger"
     ],
-    "correct_answer": 2
+    "correct_answer": 1
   },
   {
     "question": "Which is the smallest state in India by area?",
@@ -107,7 +107,7 @@
       "Himalayas",
       "Satpura"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "Who is known as the \"Iron Man of India\"?",
@@ -177,7 +177,7 @@
       "Diwali",
       "Pongal"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "Who was the first Indian in space?",
@@ -207,7 +207,7 @@
       "Abdul Kalam",
       "Rakesh Sharma"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "Who was the first Governor-General of independent India?",
@@ -237,7 +237,7 @@
       "Kerala",
       "Tamil Nadu"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "What is India's national sport?",
@@ -337,7 +337,7 @@
       "1949",
       "1952"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "What is the name of the nuclear test operation conducted by India in 1998?",
@@ -397,7 +397,7 @@
       "Sucheta Kripalani",
       "Mayawati"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "What is the motto of the Indian Navy?",
@@ -427,7 +427,7 @@
       "Banyan",
       "Mango"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "Who wrote the book 'India Wins Freedom'?",
@@ -437,7 +437,7 @@
       "Maulana Abul Kalam Azad",
       "Mahatma Gandhi"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "Which Indian state is called the \"Land of the Rising Sun\"?",
@@ -457,7 +457,7 @@
       "Mars",
       "Jupiter"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "Who designed the Indian national flag?",
@@ -497,7 +497,7 @@
       "Kalpana Chawla",
       "Indira Gandhi"
     ],
-    "correct_answer": 1
+    "correct_answer": 0
   },
   {
     "question": "Which city is known as the \"Tea Capital of India\"?",
