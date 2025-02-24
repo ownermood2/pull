@@ -67,22 +67,33 @@ class QuizManager:
             # Clean up existing questions
             self.questions = []
             for q in raw_questions:
-                question = q['question'].strip() if isinstance(q, dict) else str(q)
-                if question.startswith('/addquiz'):
-                    question = question[len('/addquiz'):].strip()
+                try:
+                    # Ensure q is a dictionary
+                    if not isinstance(q, dict):
+                        continue
 
-                # Ensure correct_answer is zero-based
-                correct_answer = q.get('correct_answer', 0)
-                if isinstance(correct_answer, int) and correct_answer > 0:
-                    correct_answer = correct_answer - 1
+                    question = q.get('question', '').strip()
+                    if not question:
+                        continue
 
-                options = q.get('options', [])
-                if len(options) == 4:  # Only add valid questions
-                    self.questions.append({
-                        'question': question,
-                        'options': options,
-                        'correct_answer': correct_answer
-                    })
+                    if question.startswith('/addquiz'):
+                        question = question[len('/addquiz'):].strip()
+
+                    # Ensure correct_answer is zero-based
+                    correct_answer = q.get('correct_answer', 0)
+                    if isinstance(correct_answer, int) and correct_answer > 0:
+                        correct_answer = correct_answer - 1
+
+                    options = q.get('options', [])
+                    if len(options) == 4:  # Only add valid questions
+                        self.questions.append({
+                            'question': question,
+                            'options': options,
+                            'correct_answer': correct_answer
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing question: {e}")
+                    continue
 
             # Load scores with error handling
             try:

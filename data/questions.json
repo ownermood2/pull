@@ -1,19 +1,512 @@
-{
-  "questions": [
-    {
-      "question": "What is the capital of India?",
-      "options": ["Mumbai", "New Delhi", "Kolkata", "Chennai"],
-      "correct_answer": 1
-    },
-    {
-      "question": "Who was the first Prime Minister of India?",
-      "options": ["Jawaharlal Nehru", "Mahatma Gandhi", "Sardar Patel", "Rajendra Prasad"],
-      "correct_answer": 0
-    },
-    {
-      "question": "Which river is known as the Ganga of South India?",
-      "options": ["Kaveri", "Krishna", "Godavari", "Narmada"],
-      "correct_answer": 0
-    }
-  ]
-}
+[
+  {
+    "question": "What is the capital of India?",
+    "options": [
+      "Mumbai",
+      "New Delhi",
+      "Kolkata",
+      "Chennai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Prime Minister of India?",
+    "options": [
+      "Jawaharlal Nehru",
+      "Mahatma Gandhi",
+      "Sardar Patel",
+      "Rajendra Prasad"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which river is known as the Ganga of South India?",
+    "options": [
+      "Kaveri",
+      "Krishna",
+      "Godavari",
+      "Narmada"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the longest river in India?",
+    "options": [
+      "Yamuna",
+      "Ganga",
+      "Brahmaputra",
+      "Narmada"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first President of India?",
+    "options": [
+      "Rajendra Prasad",
+      "S. Radhakrishnan",
+      "Indira Gandhi",
+      "B. R. Ambedkar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the largest state in India by area?",
+    "options": [
+      "Maharashtra",
+      "Madhya Pradesh",
+      "Rajasthan",
+      "Uttar Pradesh"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Which Indian city is known as the 'Pink City'?",
+    "options": [
+      "Mumbai",
+      "Jaipur",
+      "Udaipur",
+      "Jodhpur"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who wrote the Indian national anthem?",
+    "options": [
+      "Rabindranath Tagore",
+      "Bankim Chandra Chatterjee",
+      "Subramania Bharati",
+      "Sarojini Naidu"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the national animal of India?",
+    "options": [
+      "Elephant",
+      "Peacock",
+      "Lion",
+      "Tiger"
+    ],
+    "correct_answer": 2
+  },
+  {
+    "question": "Which is the smallest state in India by area?",
+    "options": [
+      "Sikkim",
+      "Goa",
+      "Nagaland",
+      "Tripura"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which mountain range separates India from China?",
+    "options": [
+      "Aravalli",
+      "Western Ghats",
+      "Himalayas",
+      "Satpura"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Who is known as the \"Iron Man of India\"?",
+    "options": [
+      "Mahatma Gandhi",
+      "Sardar Vallabhbhai Patel",
+      "Jawaharlal Nehru",
+      "Subhas Chandra Bose"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which city is known as the 'Silicon Valley of India'?",
+    "options": [
+      "Hyderabad",
+      "Bangalore",
+      "Pune",
+      "Chennai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the currency of India?",
+    "options": [
+      "Dollar",
+      "Rupee",
+      "Yen",
+      "Euro"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian state is known as the \"Land of Five Rivers\"?",
+    "options": [
+      "Punjab",
+      "Haryana",
+      "Rajasthan",
+      "Gujarat"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who built the Brihadeshwara Temple?",
+    "options": [
+      "Rajaraja Chola I",
+      "Krishnadevaraya",
+      "Akbar",
+      "Chandragupta Maurya"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the name of India's first satellite?",
+    "options": [
+      "Bhaskara",
+      "Aryabhata",
+      "INSAT-1A",
+      "Rohini"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian festival is known as the \"Festival of Lights\"?",
+    "options": [
+      "Holi",
+      "Navratri",
+      "Diwali",
+      "Pongal"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Who was the first Indian in space?",
+    "options": [
+      "Rakesh Sharma",
+      "Kalpana Chawla",
+      "Sunita Williams",
+      "Vikram Sarabhai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the name of the Indian Parliament's upper house?",
+    "options": [
+      "Lok Sabha",
+      "Rajya Sabha",
+      "Vidhan Sabha",
+      "Panchayat Sabha"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who is known as the \"Missile Man of India\"?",
+    "options": [
+      "Vikram Sarabhai",
+      "Homi Bhabha",
+      "Abdul Kalam",
+      "Rakesh Sharma"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Who was the first Governor-General of independent India?",
+    "options": [
+      "C. Rajagopalachari",
+      "Lord Mountbatten",
+      "Jawaharlal Nehru",
+      "Dr. Rajendra Prasad"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which state is famous for its backwaters?",
+    "options": [
+      "Karnataka",
+      "Kerala",
+      "Tamil Nadu",
+      "Andhra Pradesh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which state has the highest literacy rate in India?",
+    "options": [
+      "Goa",
+      "Maharashtra",
+      "Kerala",
+      "Tamil Nadu"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "What is India's national sport?",
+    "options": [
+      "Cricket",
+      "Hockey",
+      "Football",
+      "Kabaddi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who is known as the 'Nightingale of India'?",
+    "options": [
+      "Sarojini Naidu",
+      "Lata Mangeshkar",
+      "Rani Lakshmibai",
+      "Indira Gandhi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which city is known as the 'City of Joy'?",
+    "options": [
+      "Kolkata",
+      "Mumbai",
+      "Chennai",
+      "Bengaluru"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the full form of ISRO?",
+    "options": [
+      "Indian Scientific Research Organisation",
+      "Indian Space Research Organisation",
+      "International Space Research Organisation",
+      "Indian Satellite Research Organisation"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the longest dam in India?",
+    "options": [
+      "Hirakud Dam",
+      "Bhakra Nangal Dam",
+      "Sardar Sarovar Dam",
+      "Tehri Dam"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who is the author of 'Discovery of India'?",
+    "options": [
+      "Rabindranath Tagore",
+      "Jawaharlal Nehru",
+      "Mahatma Gandhi",
+      "B.R. Ambedkar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the national bird of India?",
+    "options": [
+      "Peacock",
+      "Parrot",
+      "Eagle",
+      "Pigeon"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian state is known as the \"Spice Garden of India\"?",
+    "options": [
+      "Tamil Nadu",
+      "Kerala",
+      "Karnataka",
+      "Assam"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first woman governor of an Indian state?",
+    "options": [
+      "Indira Gandhi",
+      "Sarojini Naidu",
+      "Vijaya Lakshmi Pandit",
+      "Sucheta Kripalani"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "In which year was the Indian Constitution adopted?",
+    "options": [
+      "1950",
+      "1947",
+      "1949",
+      "1952"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "What is the name of the nuclear test operation conducted by India in 1998?",
+    "options": [
+      "Operation Shakti",
+      "Operation Vijay",
+      "Operation Meghdoot",
+      "Operation Trident"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian classical dance form originated in Kerala?",
+    "options": [
+      "Kathakali",
+      "Bharatnatyam",
+      "Kuchipudi",
+      "Odissi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian state has the longest coastline?",
+    "options": [
+      "Maharashtra",
+      "Gujarat",
+      "Tamil Nadu",
+      "Andhra Pradesh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the name of India's national aquatic animal?",
+    "options": [
+      "Dolphin",
+      "Crocodile",
+      "Shark",
+      "Tortoise"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was India's first Chief Election Commissioner?",
+    "options": [
+      "Sukumar Sen",
+      "Rajendra Prasad",
+      "T. N. Seshan",
+      "V. S. Ramadevi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first woman Chief Minister of India?",
+    "options": [
+      "Indira Gandhi",
+      "Sarojini Naidu",
+      "Sucheta Kripalani",
+      "Mayawati"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "What is the motto of the Indian Navy?",
+    "options": [
+      "Jai Hind",
+      "Sam No Varunah",
+      "Satyameva Jayate",
+      "Balidaan Param Dharma"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian to win a Nobel Prize?",
+    "options": [
+      "Rabindranath Tagore",
+      "C.V. Raman",
+      "Amartya Sen",
+      "Mother Teresa"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is India's national tree?",
+    "options": [
+      "Neem",
+      "Peepal",
+      "Banyan",
+      "Mango"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Who wrote the book 'India Wins Freedom'?",
+    "options": [
+      "B.R. Ambedkar",
+      "Subhas Chandra Bose",
+      "Maulana Abul Kalam Azad",
+      "Mahatma Gandhi"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Which Indian state is called the \"Land of the Rising Sun\"?",
+    "options": [
+      "Assam",
+      "Arunachal Pradesh",
+      "Mizoram",
+      "Manipur"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which planet is called the \"Red Planet\"?",
+    "options": [
+      "Earth",
+      "Venus",
+      "Mars",
+      "Jupiter"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Who designed the Indian national flag?",
+    "options": [
+      "Pingali Venkayya",
+      "Bhagat Singh",
+      "Sardar Patel",
+      "Rabindranath Tagore"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Where is India's only active volcano located?",
+    "options": [
+      "Lakshadweep",
+      "Andaman and Nicobar Islands",
+      "Kerala",
+      "Gujarat"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the largest freshwater lake in India?",
+    "options": [
+      "Dal Lake",
+      "Wular Lake",
+      "Loktak Lake",
+      "Chilika Lake"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian woman to go to space?",
+    "options": [
+      "Sunita Williams",
+      "Rakesh Sharma",
+      "Kalpana Chawla",
+      "Indira Gandhi"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Which city is known as the \"Tea Capital of India\"?",
+    "options": [
+      "Assam",
+      "Darjeeling",
+      "Coorg",
+      "Munnar"
+    ],
+    "correct_answer": 0
+  }
+]
