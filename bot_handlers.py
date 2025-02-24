@@ -200,18 +200,18 @@ class TelegramQuizBot:
             self.quiz_manager.add_active_chat(chat_id)
 
             welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
-
+            
 🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
 ➜ Auto Quizzes – Fresh quiz every 20 mins!
 ➜ Leaderboard – Track scores & compete!
 ➜ Categories – GK, CA, History & more! /category
 ➜ Instant Results – Answers in real-time!
-
+            
 📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
 /start – Begin your journey
 /help – View commands
 /category – View topics
-
+            
 🔥 Add me as an admin & let's make learning fun!"""
 
             await update.message.reply_text(
@@ -237,12 +237,12 @@ class TelegramQuizBot:
 /help – Available commands  
 /category – View Topics
 /quiz – Try a quiz demo  
-
+            
 📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗  
 /mystats - Your Performance 
 /groupstats – Your group performance   
 /leaderboard – See champions  
-
+            
 🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
 /allreload – Full bot restart  
 /addquiz – Add new questions
@@ -275,7 +275,7 @@ class TelegramQuizBot:
 • Constitution & Law ⚖
 • Arts & Literature 🎭
 • Sports & Games 🎮  
-
+            
 🎯 Stay tuned! More quizzes coming soon!  
 🛠 Need help? Use /help for more commands!"""
 
@@ -294,18 +294,18 @@ class TelegramQuizBot:
             stats_message = f"""📊 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗣𝗲𝗿𝘀𝗼𝗻𝗮𝗹 𝗦𝘁𝗮𝘁𝘀
 ════════════════
 👤 IIı {user.first_name} 🇮🇳 ıII
-
+            
 🎯 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
 • Total Quizzes: {stats['total_quizzes']}
 • Correct Answers: {stats['correct_answers']}
 • Success Rate: {stats['success_rate']}%
 • Current Score: {stats['current_score']}
-
+            
 📈 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
 • Today: {stats['today_quizzes']} quizzes
 • This Week: {stats['week_quizzes']} quizzes
 • This Month: {stats['month_quizzes']} quizzes
-
+            
 Use /help to see all available commands! 🎮"""
 
             await update.message.reply_text(stats_message)
@@ -332,18 +332,18 @@ Use /help to see all available commands! 🎮"""
             # Header with group analytics
             stats_message = f"""📊 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀 - {chat.title}
 ════════════════
-
+            
 📈 𝗚𝗿𝗼𝘂𝗽 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
 • Total Quizzes: {stats['total_quizzes']}
 • Correct Answers: {stats['total_correct']}
 • Group Accuracy: {stats['group_accuracy']}%
-
+            
 👥 𝗔𝗰𝘁𝗶𝘃𝗲 𝗨𝘀𝗲𝗿𝘀
 • Today: {stats['active_users']['today']}
 • This Week: {stats['active_users']['week']}
 • This Month: {stats['active_users']['month']}
 • Total Members: {stats['active_users']['total']}
-
+            
 🏆 𝗚𝗿𝗼𝘂𝗽 𝗖𝗵𝗮𝗺𝗽𝗶𝗼𝗻𝘀"""
 
             # Add user entries
@@ -468,29 +468,68 @@ Use /help to see all available commands! 🎮"""
 
             active_chats = self.quiz_manager.get_active_chats()
             total_users = len(self.quiz_manager.stats)
-            total_questions = len(self.quiz_manager.questions)
+            total_groups = len(active_chats)
 
-            # Calculate total quizzes taken
-            total_quizzes = sum(stats['total_quizzes'] for stats in self.quiz_manager.stats.values())
-            correct_answers = sum(stats['correct_answers'] for stats in self.quiz_manager.stats.values())
+            # Calculate active users and groups today
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            active_users_today = sum(
+                1 for stats in self.quiz_manager.stats.values()
+                if stats.get('last_quiz_date') == current_date
+            )
+            active_groups_today = sum(
+                1 for chat_id in active_chats
+                if any(
+                    stats.get('last_quiz_date') == current_date
+                    for stats in self.quiz_manager.stats.values()
+                    if str(chat_id) in stats.get('groups', {})
+                )
+            )
 
-            stats_message = f"""📊 𝗚𝗹𝗼𝗯𝗮𝗹 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
-════════════════
+            # Calculate quizzes over time periods
+            today_quizzes = sum(
+                stats['daily_activity'].get(current_date, {}).get('attempts', 0)
+                for stats in self.quiz_manager.stats.values()
+            )
 
-👥 𝗨𝘀𝗲𝗿𝘀 & 𝗚𝗿𝗼𝘂𝗽𝘀
-• Total Users: {total_users}
-• Active Groups: {len(active_chats)}
+            # Calculate this week's quizzes
+            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+            week_quizzes = sum(
+                day_stats.get('attempts', 0)
+                for stats in self.quiz_manager.stats.values()
+                for date, day_stats in stats['daily_activity'].items()
+                if date >= week_start
+            )
 
-📝 𝗤𝘂𝗶𝘇 𝗗𝗮𝘁𝗮
-• Total Questions: {total_questions}
-• Quizzes Taken: {total_quizzes}
-• Correct Answers: {correct_answers}
-• Success Rate: {(correct_answers/total_quizzes*100) if total_quizzes > 0 else 0:.1f}%
+            # Calculate this month's quizzes
+            month_start = datetime.now().replace(day=1).strftime('%Y-%m-%d')
+            month_quizzes = sum(
+                day_stats.get('attempts', 0)
+                for stats in self.quiz_manager.stats.values()
+                for date, day_stats in stats['daily_activity'].items()
+                if date >= month_start
+            )
 
-🔄 𝗦𝘆𝘀𝘁𝗲𝗺 𝗦𝘁𝗮𝘁𝘂𝘀
-• Bot Status: Running
-• Data Files: Healthy
-• Cache Status: Active"""
+            # Calculate all-time quizzes
+            all_time_quizzes = sum(
+                stats['total_quizzes']
+                for stats in self.quiz_manager.stats.values()
+            )
+
+            stats_message = f"""🌟 𝗚𝗹𝗼𝗯𝗮𝗹 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀  
+════════════════  
+🎯 𝗖𝗼𝗺𝗺𝘂𝗻𝗶𝘁𝘆 𝗜𝗻𝘀𝗶𝗴𝗵𝘁𝘀
+👥 Total Groups: {total_groups}  
+👤 Total Users: {total_users}  
+👥 Active Groups Today: {active_groups_today}  
+👤 Active Users Today: {active_users_today}  
+
+⚡ 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗲𝗿
+📅 Quizzes Sent Today: {today_quizzes}  
+📆 This Week: {week_quizzes}  
+📊 This Month: {month_quizzes}  
+📌 All Time: {all_time_quizzes}  
+
+🚀 Keep the competition going! Use /help to explore more commands! 🎮"""
 
             await update.message.reply_text(stats_message)
 
