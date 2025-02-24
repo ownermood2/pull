@@ -92,12 +92,16 @@ class TelegramQuizBot:
             question = self.quiz_manager.get_random_question(chat_id)
             if not question:
                 await context.bot.send_message(chat_id=chat_id, text="No questions available.")
+                logger.warning(f"No questions available for chat {chat_id}")
                 return
 
             # Ensure question text is clean
             question_text = question['question'].strip()
             if question_text.startswith('/addquiz'):
                 question_text = question_text[len('/addquiz'):].strip()
+                logger.info(f"Cleaned /addquiz prefix from question for chat {chat_id}")
+
+            logger.info(f"Sending quiz to chat {chat_id}. Question: {question_text[:50]}...")
 
             # Send the poll
             message = await context.bot.send_poll(
@@ -190,7 +194,7 @@ class TelegramQuizBot:
             # Schedule automated quiz job
             self.application.job_queue.run_repeating(
                 self.send_automated_quiz,
-                interval=1200,  # 20 minutes in seconds
+                interval=300,  # 5 minutes for testing (changed from 1200)
                 first=10  # Start first quiz after 10 seconds
             )
 
@@ -447,6 +451,7 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error showing categories: {e}")
             await update.message.reply_text("Error showing categories.")
+
 
 
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -744,7 +749,7 @@ Use /help to see all available commands! 🎮"""
             await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
 
         except Exception as e:
-            logger.error(f"Error in globalstats: {e}")
+            logger.error(f"Error inglobalstats: {e}")
             await update.message.reply_text("❌ Error retrieving global stats.")
 
     async def editquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1155,12 +1160,7 @@ Use /help to see all commands."""
                         await self.send_admin_reminder(chat_id, context)
                         continue
 
-                    # Send quiz to this chat
-                    await context.bot.send_message(
-                        chat_id=chat_id,
-                        text="🎯 𝗔𝘂𝘁𝗼𝗺𝗮𝘁𝗶𝗰 𝗤𝘂𝗶𝘇 𝗧𝗶𝗺𝗲!\n\nGet ready for your next quiz challenge! 🎮",
-                        parse_mode=ParseMode.MARKDOWN
-                    )
+                    # Send quiz directly without announcement
                     await self.send_quiz(chat_id, context)
                     logger.info(f"Successfully sent automated quiz to chat {chat_id}")
 
@@ -1173,6 +1173,63 @@ Use /help to see all commands."""
         except Exception as e:
             logger.error(f"Error in automated quiz broadcast: {str(e)}\n{traceback.format_exc()}")
 
+    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send a quiz to a specific chat using native Telegram quiz format"""
+        try:
+            # First, try to delete the last quiz if it exists
+            try:
+                chat_history = self.command_history.get(chat_id, [])
+                if chat_history:
+                    last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
+                    if last_quiz:
+                        msg_id = int(last_quiz.split("_")[1])
+                        await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                        logger.info(f"Deleted previous quiz message {msg_id} in chat {chat_id}")
+            except Exception as e:
+                logger.warning(f"Failed to delete previous quiz: {e}")
+
+            # Get a random question for this specific chat
+            question = self.quiz_manager.get_random_question(chat_id)
+            if not question:
+                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
+                logger.warning(f"No questions available for chat {chat_id}")
+                return
+
+            # Ensure question text is clean
+            question_text = question['question'].strip()
+            if question_text.startswith('/addquiz'):
+                question_text = question_text[len('/addquiz'):].strip()
+                logger.info(f"Cleaned /addquiz prefix from question for chat {chat_id}")
+
+            logger.info(f"Sending quiz to chat {chat_id}. Question: {question_text[:50]}...")
+
+            # Send the poll
+            message = await context.bot.send_poll(
+                chat_id=chat_id,
+                question=question_text,  # Use cleaned question text
+                options=question['options'],
+                type=Poll.QUIZ,
+                correct_option_id=question['correct_answer'],
+                is_anonymous=False
+            )
+
+            if message and message.poll:
+                poll_data = {
+                    'chat_id': chat_id,
+                    'correct_option_id': question['correct_answer'],
+                    'user_answers': {},
+                    'poll_id': message.poll.id,
+                    'question': question_text,  # Store cleaned question text
+                    'timestamp': datetime.now().isoformat()
+                }
+                # Store using proper poll ID key
+                context.bot_data[f"poll_{message.poll.id}"] = poll_data
+                logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
+                self.command_history[chat_id].append(f"/quiz_{message.message_id}")
+
+        except Exception as e:
+            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
+            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
 
 async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""
