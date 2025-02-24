@@ -776,7 +776,7 @@ class QuizManager:
         except Exception:
             return False
 
-    def remove_invalid_questions():
+    def remove_invalid_questions(self):
         """Remove questions with invalid format or answers"""
         try:
             initial_count = len(self.questions)
@@ -1407,4 +1407,18 @@ class QuizManager:
             }
         except Exception as e:
             logger.error(f"Error removing invalid questions: {e}")
+            raise
+    def clear_all_questions(self):
+        """Remove all questions from the database"""
+        try:
+            initial_count = len(self.questions)
+            self.questions = []
+            self.save_data(force=True)
+            logger.info(f"Cleared all {initial_count} questions from database")
+            return {
+                'initial_count': initial_count,
+                'cleared': True
+            }
+        except Exception as e:
+            logger.error(f"Error clearing questions: {e}")
             raise

@@ -187,6 +187,7 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("broadcast", self.broadcast))
             self.application.add_handler(CommandHandler("totalquiz", self.totalquiz))
             self.application.add_handler(CommandHandler("cleanup_quizzes", self.cleanup_quizzes))
+            self.application.add_handler(CommandHandler("clear_quizzes", self.clear_quizzes))
 
             # Handle answers and chat member updates
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
@@ -433,8 +434,8 @@ class TelegramQuizBot:
 /broadcast – Send announcements
 /delquiz - Delete a quiz
 /totalquiz - Show total quizzes
-/cleanupquizzes - Clean up invalid quizzes"""
-
+/cleanup_quizzes - Clean up invalid quizzes
+/clear_quizzes - Remove all quizzes"""
             help_text += "\n════════════════"
             await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
         except Exception as e:
@@ -1462,7 +1463,7 @@ Use /help to see all commands."""
             )
 
             if message and message.poll:
-                poll_data ={
+                poll_data = {
                     'chat_id': chat_id,
                     'correct_option_id': question['correct_answer'],
                     'user_answers': {},
@@ -1505,122 +1506,45 @@ Please reply to a quiz message or use:
         )
         logger.warning(f"Invalid quiz reply for {command} from user {update.message.from_user.id}")
 
-    async def send_automated_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send automated quiz to all active group chats"""
+    async def clear_quizzes(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Clear all quizzes from database - Developer only"""
         try:
-            active_chats = self.quiz_manager.get_active_chats()
-            logger.info(f"Starting automated quiz broadcast to {len(active_chats)} active chats")
-
-            for chat_id in active_chats:
-                try:
-                    # Check if chat is a group and bot is admin
-                    chat = await context.bot.get_chat(chat_id)
-                    if chat.type not in ["group", "supergroup"]:
-                        logger.info(f"Skipping non-group chat {chat_id}")
-                        continue
-
-                    is_admin = await self.check_admin_status(chat_id, context)
-                    if not is_admin:
-                        logger.warning(f"Bot is not admin in chat {chat_id}, sending reminder")
-                        await self.send_admin_reminder(chat_id, context)
-                        continue
-
-                    # Send quiz directly without announcement
-                    await self.send_quiz(chat_id, context)
-                    logger.info(f"Successfully sent automated quiz to chat {chat_id}")
-
-                except Exception as e:
-                    logger.error(f"Failed to send automated quiz to chat {chat_id}: {str(e)}\n{traceback.format_exc()}")
-                    continue
-
-            logger.info("Completed automated quiz broadcast cycle")
-
-        except Exception as e:
-            logger.error(f"Error in automated quiz broadcast: {str(e)}\n{traceback.format_exc()}")
-
-    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send a quiz to a specific chat using native Telegram quiz format"""
-        try:
-            # First, try to delete the last quiz if it exists
-            try:
-                chat_history = self.command_history.get(chat_id, [])
-                if chat_history:
-                    last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
-                    if last_quiz:
-                        msg_id = int(last_quiz.split("_")[1])
-                        await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                        logger.info(f"Deleted previous quiz message {msg_id} in chat {chat_id}")
-            except Exception as e:
-                logger.warning(f"Failed to delete previous quiz: {e}")
-
-            # Get a random question for this specific chat
-            question = self.quiz_manager.get_random_question(chat_id)
-            if not question:
-                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
-                logger.warning(f"No questions available for chat {chat_id}")
+            if not await self.is_developer(update.message.from_user.id):
+                await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Ensure question text is clean
-            question_text = question['question'].strip()
-            if question_text.startswith('/addquiz'):
-                question_text = question_text[len('/addquiz'):].strip()
-                logger.info(f"Cleaned /addquiz prefix from question for chat {chat_id}")
+            # Get initial count for verification
+            initial_count = len(self.quiz_manager.questions)
 
-            logger.info(f"Sending quiz to chat {chat_id}. Question: {question_text[:50]}...")
+            # Clear all questions
+            result = self.quiz_manager.clear_all_questions()
 
-            # Send the poll
-            message = await context.bot.send_poll(
-                chat_id=chat_id,
-                question=question_text,  # Use cleaned question text
-                options=question['options'],
-                type=Poll.QUIZ,
-                correct_option_id=question['correct_answer'],
-                is_anonymous=False
+            # Format response message
+            response = f"""📊 𝗤𝘂𝗶𝘇 𝗗𝗮𝘁𝗮𝗯𝗮𝘀𝗲 𝗖𝗹𝗲𝗮𝗿𝗲𝗱
+════════════════
+• Total Quizzes Removed: {result['initial_count']}
+• Database Status: Clean ✨
+
+✅ Ready to add new quizzes!
+Use /addquiz to add new questions.
+════════════════"""
+
+            await update.message.reply_text(
+                response,
+                parse_mode=ParseMode.MARKDOWN
             )
-
-            if message and message.poll:
-                poll_data ={
-                    'chat_id': chat_id,
-                    'correct_option_id': question['correct_answer'],
-                    'user_answers': {},
-                    'poll_id': message.poll.id,
-                    'question': question_text,  # Store cleaned question text
-                    'timestamp': datetime.now().isoformat()
-                }
-                # Store using proper poll ID key
-                context.bot_data[f"poll_{message.poll.id}"] = poll_data
-                logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
-                self.command_history[chat_id].append(f"/quiz_{message.message_id}")
+            logger.info(f"Cleared all quizzes. Removed {result['initial_count']} questions")
 
         except Exception as e:
-            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
-            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
-
-    async def _handle_quiz_not_found(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle cases where quiz data is not found"""
-        await update.message.reply_text(
-            """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲
+            logger.error(f"Error in clear_quizzes: {e}")
+            await update.message.reply_text(
+                """❌ 𝗘𝗿𝗿𝗼𝗿
 ════════════════
-This quiz message is too old or no longer exists.
-Please use /editquiz to view all available quizzes.
+Failed to clear quiz database.
+Please try again later.
 ════════════════""",
-            parse_mode=ParseMode.MARKDOWN
-        )
-        logger.warning(f"Quiz not found in reply-to message from user {update.message.from_user.id}")
-
-    async def _handle_invalid_quiz_reply(self, update: Update, context: ContextTypes.DEFAULT_TYPE, command: str) -> None:
-        """Handle invalid quiz reply messages"""
-        await update.message.reply_text(
-            f"""❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗥𝗲𝗽𝗹𝘆
-════════════════
-Please reply to a quiz message or use:
-/{command} [quiz_number]
-
-ℹ️ Use /editquiz to view all quizzes
-════════════════""",
-            parse_mode=ParseMode.MARKDOWN
-        )
-        logger.warning(f"Invalid quiz reply for {command} from user {update.message.from_user.id}")
+                parse_mode=ParseMode.MARKDOWN
+            )
 
     async def cleanup_quizzes(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Clean up invalid quizzes - Developer only"""
@@ -1662,30 +1586,37 @@ Please try again later.
                 parse_mode=ParseMode.MARKDOWN
             )
 
-async def setup_bot(quiz_manager):
-    """Setup and start the Telegram bot"""
-    logger.info("Setting up Telegram bot...")
-    try:
-        bot = TelegramQuizBot(quiz_manager)
-        token = os.environ.get("TELEGRAM_TOKEN")
-        if not token:
-            raise ValueError("TELEGRAM_TOKEN environment variable is required")
-        await bot.initialize(token)
-        return bot
-    except Exception as e:
-        logger.error(f"Failed to setup Telegram bot: {e}")
-        raise
+    async def setup_bot(quiz_manager):
+        """Setup and start the Telegram bot"""
+        logger.info("Setting up Telegram bot...")
+        try:
+            bot = TelegramQuizBot(quiz_manager)
+            token = os.environ.get("TELEGRAM_TOKEN")
+            if not token:
+                raise ValueError("TELEGRAM_TOKEN environment variable is required")
+            await bot.initialize(token)
+            return bot    
+        except Exception as e:
+            logger.error(f"Failed to setup Telegram bot: {e}")
+            raise
 
 def extract_status_change(chat_member_update):
     """Extract whether bot was added or removed."""
-    status_change = chat_member_update.difference().get("status")
-    if status_change is None:
-        return None
+    try:
+        if not chat_member_update or not hasattr(chat_member_update, 'difference'):
+            return None
 
-    old_is_member = chat_member_update.old_chat_member.status in (
-        "member", "administrator", "creator"
-    )
-    new_is_member = chat_member_update.new_chat_member.status in (
-        "member", "administrator", "creator"
-    )
-    return old_is_member, new_is_member
+        status_change = chat_member_update.difference().get("status")
+        if status_change is None:
+            return None
+
+        old_status = chat_member_update.old_chat_member.status
+        new_status = chat_member_update.new_chat_member.status
+
+        was_member = old_status in ["member", "administrator", "creator"]
+        is_member = new_status in ["member", "administrator", "creator"]
+
+        return was_member, is_member
+    except Exception as e:
+        logger.error(f"Error extracting status change: {e}")
+        return None
