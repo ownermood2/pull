@@ -852,32 +852,37 @@ Use /help to see all available commands! 🎮"""
             questions_text = f"""📝 𝗤𝘂𝗶𝘇 𝗘𝗱𝗶𝘁𝗼𝗿 (Page {page}/{total_pages})
 ════════════════
 
-To edit a quiz, use:
-/editquiz [page_number]
-To delete a quiz:
-/delquiz [quiz_number]
+📌 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀:
+• View quizzes: /editquiz [page_number]
+• Delete quiz: /delquiz [quiz_number]
+• Add new quiz: /addquiz
 
-ℹ️ Total Questions: {len(questions)}
-ℹ️ Showing: Questions {start_idx + 1} to {min(end_idx, len(questions))}
+📊 𝗦𝘁𝗮𝘁𝘀:
+• Total Quizzes: {len(questions)}
+• Showing: #{start_idx + 1} to #{min(end_idx, len(questions))}
 
+🎯 𝗤𝘂𝗶𝘇 𝗟𝗶𝘀𝘁:
 """
             for i, q in enumerate(questions[start_idx:end_idx], start=start_idx + 1):
-                questions_text += f"""📌 𝗤𝘂𝗶𝘇 #{i}
+                questions_text += f"""
+
+📌 𝗤𝘂𝗶𝘇 #{i}
 ❓ Question: {q['question']}
-📍 Options:
-"""
+📍 Options:"""
                 for j, opt in enumerate(q['options'], 1):
                     marker = "✅" if j-1 == q['correct_answer'] else "⭕"
-                    questions_text += f"{marker} {j}. {opt}\n"
-                questions_text += "════════════════\n\n"
+                    questions_text += f"\n{marker} {j}. {opt}"
+                questions_text += "\n════════════════"
 
             # Add navigation help
             if total_pages > 1:
-                questions_text += f"\n📖 Page {page} of {total_pages}"
+                questions_text += f"""
+
+📖 𝗡𝗮𝘃𝗶𝗴𝗮𝘁𝗶𝗼𝗻:"""
                 if page > 1:
-                    questions_text += f"\n⬅️ Previous page: /editquiz {page-1}"
+                    questions_text += f"\n⬅️ Previous: /editquiz {page-1}"
                 if page < total_pages:
-                    questions_text += f"\n➡️ Next page: /editquiz {page+1}"
+                    questions_text += f"\n➡️ Next: /editquiz {page+1}"
 
             # Send the formatted message
             await update.message.reply_text(
@@ -890,7 +895,7 @@ To delete a quiz:
             error_msg = f"Error in editquiz command: {str(e)}\n{traceback.format_exc()}"
             logger.error(error_msg)
             await update.message.reply_text(
-                "❌ Error displaying quizzes. Please try again.",
+                "❌ Error displaying quizzes. Please try again later.",
                 parse_mode=ParseMode.MARKDOWN
             )
 
