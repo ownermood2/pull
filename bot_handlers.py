@@ -405,7 +405,7 @@ Use /help to see all available commands! 🎮"""
         """Full bot restart - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
-                await update.message.reply_text("This command is for developers only.")
+                await self._handle_dev_command_unauthorized(update)
                 return
 
             # Reload data
@@ -440,7 +440,7 @@ Use /help to see all available commands! 🎮"""
         """
         try:
             if not await self.is_developer(update.message.from_user.id):
-                await update.message.reply_text("This command is for developers only.")
+                await self._handle_dev_command_unauthorized(update)
                 return
 
             # Extract message content
@@ -553,7 +553,7 @@ Use /help to see all available commands! 🎮"""
         """Show bot statistics - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
-                await update.message.reply_text("This command is for developers only.")
+                await self._handle_dev_command_unauthorized(update)
                 return
 
             active_chats = self.quiz_manager.get_active_chats()
@@ -631,7 +631,7 @@ Use /help to see all available commands! 🎮"""
         """Edit existing quiz - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
-                await update.message.reply_text("This command is for developers only.")
+                await self._handle_dev_command_unauthorized(update)
                 return
 
             # Get all questions
@@ -661,7 +661,7 @@ Use /help to see all available commands! 🎮"""
         """Send announcements - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
-                await update.message.reply_text("This command is for developers only.")
+                await self._handle_dev_command_unauthorized(update)
                 return
 
             # Get message to broadcast
@@ -702,9 +702,30 @@ Use /help to see all available commands! 🎮"""
 
     async def is_developer(self, user_id: int) -> bool:
         """Check if user is a developer"""
-        # List of developer user IDs
-        developer_ids = [7653153066]  # Added the user from logs as developer
-        return user_id in developer_ids
+        try:
+            user = await self.application.bot.get_chat_member(user_id, user_id)
+            return (user.user.username in ['CV_Owner', 'Ace_Clat'])
+        except Exception as e:
+            logger.error(f"Error checking developer status: {e}")
+            return False
+
+    async def _handle_dev_command_unauthorized(self, update: Update) -> None:
+        """Handle unauthorized access to developer commands"""
+        message = """🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗔𝗖𝗖𝗘𝗦𝗦 𝗢𝗡𝗟𝗬
+════════════════
+🚀 𝗥𝗲𝘀𝘁𝗿𝗶𝗰𝘁𝗲𝗱 𝗔𝗰𝗰𝗲𝘀𝘀
+🔹 This command is exclusively available to the Developer & His Wife to maintain quiz integrity & security.
+
+📌 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 & ଇ𝗻𝗾𝘂𝗶𝗿𝗶𝗲𝘀
+📩 Contact: @CV_Owner & His Wifu ❤️
+💰 Paid Promotions: Up to 25K GC
+📝 Contribute: Share your quiz ideas
+⚠️ Report: Issues & bugs
+💡 Suggest: Improvements & enhancements
+
+✅ Thank you for your cooperation!
+════════════════"""
+        await update.message.reply_text(message)
 
     async def scheduled_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send scheduled quizzes to all active chats"""
