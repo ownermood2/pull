@@ -4,7 +4,7 @@ import asyncio
 from flask import Flask
 from app import app, init_bot
 import threading
-from concurrent.futures import ThreadPoolExecutor
+import signal
 
 # Configure logging
 logging.basicConfig(
@@ -13,57 +13,45 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Flag to control the application lifecycle
+is_running = True
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals"""
+    global is_running
+    logger.info(f"Received signal {signum}")
+    is_running = False
+
 def run_flask():
     """Run Flask in a separate thread"""
     try:
-        app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False, threaded=True)
+        app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
     except Exception as e:
         logger.error(f"Failed to start Flask: {e}")
         raise
 
-def run_bot_forever():
-    """Run the Telegram bot in a separate thread with its own event loop"""
+if __name__ == "__main__":
     try:
-        # Create new event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Set up signal handlers
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
 
-        # Run the bot
-        loop.run_until_complete(init_bot())
-        loop.run_forever()
-    except Exception as e:
-        logger.error(f"Bot thread error: {e}")
-        raise
-    finally:
-        loop.close()
+        # Verify Telegram token
+        if not os.environ.get("TELEGRAM_TOKEN"):
+            raise ValueError("TELEGRAM_TOKEN environment variable is required")
 
-def main():
-    """Entry point of the application"""
-    try:
-        # Start Flask in a thread
+        # Start Flask in a background thread
         flask_thread = threading.Thread(target=run_flask)
         flask_thread.daemon = True
         flask_thread.start()
         logger.info("Flask admin interface started in background thread")
 
-        # Start bot in another thread
-        bot_thread = threading.Thread(target=run_bot_forever)
-        bot_thread.daemon = True
-        bot_thread.start()
-        logger.info("Telegram bot thread started")
+        # Run Telegram bot in the main thread
+        logger.info("Starting Telegram bot in main thread...")
+        asyncio.run(init_bot())
 
-        # Keep main thread alive
-        while True:
-            try:
-                flask_thread.join(1)
-                bot_thread.join(1)
-            except KeyboardInterrupt:
-                logger.info("Shutdown requested")
-                break
-
+    except KeyboardInterrupt:
+        logger.info("Application shutdown requested")
     except Exception as e:
         logger.error(f"Application error: {e}")
         raise
-
-if __name__ == "__main__":
-    main()

@@ -11,5 +11,6 @@ dependencies = [
     "gunicorn>=23.0.0",
     "psycopg2-binary>=2.9.10",
     "python-telegram-bot[job-queue,webhooks]>=20.0",
+    "slack-sdk>=3.34.0",
     "telegram>=0.0.1",
 ]

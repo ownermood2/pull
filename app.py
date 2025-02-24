@@ -69,7 +69,7 @@ def delete_question(question_id):
 if __name__ == "__main__":
     try:
         import asyncio
-        asyncio.run(init_bot()) #added this line to run the bot initialization
+        asyncio.run(init_bot())
         app.run(host="0.0.0.0", port=5000, debug=True)
     except Exception as e:
         logger.exception(f"Application startup failed: {e}")
