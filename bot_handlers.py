@@ -30,6 +30,7 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("start", self.start))
             self.application.add_handler(CommandHandler("help", self.help))
             self.application.add_handler(CommandHandler("score", self.score))
+            self.application.add_handler(CommandHandler("category", self.category)) # Added category handler
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
 
             # Schedule quiz every 20 minutes (1200 seconds)
@@ -54,8 +55,35 @@ class TelegramQuizBot:
         try:
             chat_id = update.effective_chat.id
             self.quiz_manager.add_active_chat(chat_id)
-            await update.message.reply_text("Quiz Bot activated. Quizzes will be sent every 20 minutes.")
+
+            # Get bot info for the profile link
+            bot = await context.bot.get_me()
+            bot_username = bot.username
+
+            welcome_message = f"""🎯 Welcome to 𝓘𝓘𝓲 [{bot_username}](tg://user?id={bot.id}) 🇮🇳 𝓲𝓘𝓘 🎉
+
+🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
+➜ Auto Quizzes – Fresh quiz every 20 mins!
+➜ Leaderboard – Track scores & compete!
+➜ Categories – GK, CA, History & more! /category
+➜ Instant Results – Answers in real-time!
+
+📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
+/start – Begin your journey
+/help – View commands
+/category – View topics
+
+🔥 Add me as an admin & let's make learning fun!"""
+
+            await update.message.reply_text(
+                welcome_message,
+                parse_mode='Markdown',
+                disable_web_page_preview=True
+            )
+
+            # Send first quiz immediately
             await self.send_quiz(chat_id, context)
+
         except Exception as e:
             logger.error(f"Error in start command: {e}")
             await update.message.reply_text("Error starting the bot. Please try again.")
@@ -63,7 +91,7 @@ class TelegramQuizBot:
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /help command"""
         try:
-            help_text = "Commands:\n/start - Activate quizzes\n/help - Show commands\n/score - Check your score"
+            help_text = "Commands:\n/start - Activate quizzes\n/help - Show commands\n/score - Check your score\n/category - View available categories" #added category command
             await update.message.reply_text(help_text)
         except Exception as e:
             logger.error(f"Error in help command: {e}")
@@ -122,6 +150,19 @@ class TelegramQuizBot:
                 await self.send_quiz(chat_id, context)
         except Exception as e:
             logger.error(f"Error in scheduled quiz: {e}")
+
+    async def category(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle the /category command"""
+        try:
+            categories = self.quiz_manager.get_categories() #Assumed method in quiz_manager
+            if categories:
+                await update.message.reply_text(f"Available Categories:\n{', '.join(categories)}")
+            else:
+                await update.message.reply_text("No categories available.")
+        except Exception as e:
+            logger.error(f"Error getting categories: {e}")
+            await update.message.reply_text("Error getting categories.")
+
 
 async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""
