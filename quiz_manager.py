@@ -27,6 +27,7 @@ class QuizManager:
         self._cache_duration = timedelta(minutes=5)
         # Track recently asked questions per chat
         self.recent_questions = defaultdict(lambda: deque(maxlen=50))  # Store last 50 questions per chat
+        self.last_question_time = defaultdict(dict)  # Track when each question was last asked in each chat
 
     def _initialize_files(self):
         """Initialize data files with proper error handling"""
@@ -311,34 +312,58 @@ class QuizManager:
             logger.error(f"Error recording group attempt: {e}")
             raise
 
-    @lru_cache(maxsize=1)
+    @lru_cache(maxsize=100)
     def get_random_question(self, chat_id: int = None) -> Optional[Dict[str, Any]]:
-        """Get a random question avoiding recent ones"""
-        if not self.questions:
-            return None
+        """Get a random question avoiding recent ones with improved tracking"""
+        try:
+            if not self.questions:
+                return None
 
-        # If no chat_id provided or no recent questions for this chat, return completely random
-        if not chat_id or not self.recent_questions[chat_id]:
-            question = random.choice(self.questions)
-            if chat_id:
-                self.recent_questions[chat_id].append(question['question'])
+            current_time = datetime.now()
+
+            # If no chat_id provided, return completely random
+            if not chat_id:
+                return random.choice(self.questions)
+
+            # Get all questions that haven't been asked recently in this chat
+            asked_questions = set(self.recent_questions[chat_id])
+            available_questions = [
+                q for q in self.questions
+                if q['question'] not in asked_questions
+            ]
+
+            # If too few questions available, clear old history
+            if len(available_questions) < len(self.questions) * 0.2:  # Less than 20% available
+                # Remove questions older than 6 hours
+                old_time = current_time - timedelta(hours=6)
+                self.recent_questions[chat_id] = deque(
+                    [q for q in self.recent_questions[chat_id]
+                     if self.last_question_time[chat_id].get(q, old_time) > old_time],
+                    maxlen=50
+                )
+                asked_questions = set(self.recent_questions[chat_id])
+                available_questions = [
+                    q for q in self.questions
+                    if q['question'] not in asked_questions
+                ]
+
+            # If still no questions available, clear all history
+            if not available_questions:
+                self.recent_questions[chat_id].clear()
+                self.last_question_time[chat_id].clear()
+                available_questions = self.questions
+
+            # Select a random question and update tracking
+            question = random.choice(available_questions)
+            self.recent_questions[chat_id].append(question['question'])
+            self.last_question_time[chat_id][question['question']] = current_time
+
+            logger.info(f"Selected new question for chat {chat_id}. Available questions: {len(available_questions)}")
             return question
 
-        # Get questions that haven't been asked recently in this chat
-        available_questions = [
-            q for q in self.questions
-            if q['question'] not in self.recent_questions[chat_id]
-        ]
-
-        # If all questions have been asked recently, clear history and use all questions
-        if not available_questions:
-            self.recent_questions[chat_id].clear()
-            available_questions = self.questions
-
-        # Select a random question from available ones
-        question = random.choice(available_questions)
-        self.recent_questions[chat_id].append(question['question'])
-        return question
+        except Exception as e:
+            logger.error(f"Error in get_random_question: {e}\n{traceback.format_exc()}")
+            return random.choice(self.questions)  # Fallback to completely random selection
 
     def get_leaderboard(self) -> List[Dict]:
         """Get global leaderboard with caching"""
@@ -539,10 +564,27 @@ class QuizManager:
 
     def cleanup_old_questions(self):
         """Cleanup old question history periodically"""
-        current_time = datetime.now()
-        cutoff_time = current_time - timedelta(hours=24)
+        try:
+            current_time = datetime.now()
+            cutoff_time = current_time - timedelta(hours=24)
 
-        for chat_id in list(self.recent_questions.keys()):
-            # Remove chat histories older than 24 hours
-            if len(self.recent_questions[chat_id]) == 0:
-                del self.recent_questions[chat_id]
+            for chat_id in list(self.recent_questions.keys()):
+                # Clear tracking for chats with no recent activity
+                if not self.recent_questions[chat_id]:
+                    del self.recent_questions[chat_id]
+                    if chat_id in self.last_question_time:
+                        del self.last_question_time[chat_id]
+                    continue
+
+                # Remove old question timestamps
+                if chat_id in self.last_question_time:
+                    old_questions = [
+                        q for q, t in self.last_question_time[chat_id].items()
+                        if t < cutoff_time
+                    ]
+                    for q in old_questions:
+                        del self.last_question_time[chat_id][q]
+
+            logger.info("Completed cleanup of old questions history")
+        except Exception as e:
+            logger.error(f"Error in cleanup_old_questions: {e}")

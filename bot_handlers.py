@@ -183,11 +183,6 @@ class TelegramQuizBot:
 
             # Schedule cleanup and quiz jobs
             self.application.job_queue.run_repeating(
-                self.scheduled_quiz,
-                interval=1200,  # Every 20 minutes
-                first=10
-            )
-            self.application.job_queue.run_repeating(
                 self.scheduled_cleanup,
                 interval=3600,  # Every hour
                 first=300
@@ -196,6 +191,12 @@ class TelegramQuizBot:
                 self.cleanup_old_polls,
                 interval=3600, #Every Hour
                 first=300
+            )
+            # Add question history cleanup job
+            self.application.job_queue.run_repeating(
+                lambda context: self.quiz_manager.cleanup_old_questions(),
+                interval=3600,  # Every hour
+                first=600
             )
 
             await self.application.initialize()
@@ -756,7 +757,8 @@ Use /help to see all available commands! 🎮"""
             total_pages = max(1, (total_questions + per_page - 1) // per_page)
             page = min(page, total_pages)
 
-            # Calculate slice indicesstart_idx = (page - 1) * per_page
+            # Calculate slice indices
+            start_idx = (page - 1) * per_page
             end_idx = min(start_idx + per_page, total_questions)
 
             # Format header
