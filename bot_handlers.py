@@ -536,7 +536,7 @@ Use /help to see all available commands! 🎮"""
 • Correct Answers: {stats['total_correct']}
 • Group Accuracy: {stats['group_accuracy']}%
 
-👥 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗶𝗻𝗴
+👥 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗶𝗻𝗚
 • Active Today: {stats['active_users']['today']} users
 • Active This Week: {stats['active_users']['week']} users
 • Active This Month: {stats['active_users']['month']} users
@@ -758,7 +758,7 @@ Use /help to see all available commands! 🎮"""
                 1 for chat_id in active_chats
                 if any(
                     stats.get('last_quiz_date') == current_date
-                                            for stats in self.quiz_manager.stats.values()
+                                             for stats in self.quiz_manager.stats.values()
                     if str(chat_id) in stats.get('groups', {})
                 )
             )
@@ -1078,7 +1078,7 @@ Use /help to see all available commands! 🎮"""
             logger.error(f"Error cleaning up old polls: {e}")
 
     async def delquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Delete a quiz question - Developer only"""
+        """Show and delete quiz questions - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
@@ -1087,8 +1087,15 @@ Use /help to see all available commands! 🎮"""
             # Check if quiz number is provided
             if not context.args:
                 await update.message.reply_text(
-                    "❌ Please provide a quiz number to delete.\n"
-                    "Usage: /delquiz [quiz_number]",
+                    """❌ 𝗤𝘂𝗶𝘇 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
+════════════════
+Please provide a quiz number to delete.
+
+📝 Usage:
+/delquiz [quiz_number]
+
+ℹ️ Use /editquiz to view available quizzes
+════════════════""",
                     parse_mode=ParseMode.MARKDOWN
                 )
                 return
@@ -1099,7 +1106,12 @@ Use /help to see all available commands! 🎮"""
 
                 if not (1 <= quiz_num <= len(questions)):
                     await update.message.reply_text(
-                        f"❌ Invalid quiz number. Please choose between 1 and {len(questions)}",
+                        f"""❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗤𝘂𝗶𝘇 𝗡𝘂𝗺𝗯𝗲𝗿
+════════════════
+Please choose a number between 1 and {len(questions)}
+
+ℹ️ Use /editquiz to view available quizzes
+════════════════""",
                         parse_mode=ParseMode.MARKDOWN
                     )
                     return
@@ -1108,15 +1120,23 @@ Use /help to see all available commands! 🎮"""
                 quiz = questions[quiz_num - 1]
                 confirm_text = f"""🗑 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
 ════════════════
-📌 Quiz #{quiz_num}
+
+📌 𝗤𝘂𝗶𝘇 #{quiz_num}
 ❓ Question: {quiz['question']}
-📍 Options:
-"""
+
+📍 𝗢𝗽𝘁𝗶𝗼𝗻𝘀:"""
                 for i, opt in enumerate(quiz['options'], 1):
                     marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
-                    confirm_text += f"{marker} {i}. {opt}\n"
+                    confirm_text += f"\n{marker} {i}. {opt}"
 
-                confirm_text += "\n⚠️ To confirm deletion, use:\n/delquiz_confirm {num}".format(num=quiz_num)
+                confirm_text += """
+
+⚠️ 𝗧𝗼 𝗰𝗼𝗻𝗳𝗶𝗿𝗺 𝗱𝗲𝗹𝗲𝘁𝗶𝗼𝗻:
+/delquiz_confirm """ + str(quiz_num) + """
+
+❌ 𝗧𝗼 𝗰𝗮𝗻𝗰𝗲𝗹:
+Use any other command or ignore this message
+════════════════"""
 
                 await update.message.reply_text(
                     confirm_text,
@@ -1126,7 +1146,15 @@ Use /help to see all available commands! 🎮"""
 
             except ValueError:
                 await update.message.reply_text(
-                    "❌ Invalid quiz number format. Please use a number.",
+                    """❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗜𝗻𝗽𝘂𝘁
+════════════════
+Please provide a valid number.
+
+📝 Usage:
+/delquiz [quiz_number]
+
+ℹ️ Use /editquiz to view available quizzes
+════════════════""",
                     parse_mode=ParseMode.MARKDOWN
                 )
 
@@ -1134,7 +1162,11 @@ Use /help to see all available commands! 🎮"""
             error_msg = f"Error in delquiz command: {str(e)}\n{traceback.format_exc()}"
             logger.error(error_msg)
             await update.message.reply_text(
-                "❌ Error processing delete request.",
+                """❌ 𝗘𝗿𝗿𝗼𝗿
+════════════════
+Failed to process delete request.
+Please try again later.
+════════════════""",
                 parse_mode=ParseMode.MARKDOWN
             )
 
@@ -1147,7 +1179,13 @@ Use /help to see all available commands! 🎮"""
 
             if not context.args:
                 await update.message.reply_text(
-                    "❌ Please provide a quiz number to confirm deletion.",
+                    """❌ 𝗠𝗶𝘀𝘀𝗶𝗻𝗴 𝗤𝘂𝗶𝘇 𝗡𝘂𝗺𝗯𝗲𝗿
+════════════════
+Please provide the quiz number to confirm deletion.
+
+📝 Usage:
+/delquiz_confirm [quiz_number]
+════════════════""",
                     parse_mode=ParseMode.MARKDOWN
                 )
                 return
@@ -1158,23 +1196,43 @@ Use /help to see all available commands! 🎮"""
 
                 if not (1 <= quiz_num <= len(questions)):
                     await update.message.reply_text(
-                        f"❌ Invalid quiz number. Please choose between 1 and {len(questions)}",
+                        f"""❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗤𝘂𝗶𝘇 𝗡𝘂𝗺𝗯𝗲𝗿
+════════════════
+Please choose a number between 1 and {len(questions)}
+
+ℹ️ Use /editquiz to view available quizzes
+════════════════""",
                         parse_mode=ParseMode.MARKDOWN
                     )
                     return
 
                 # Delete the quiz
                 self.quiz_manager.delete_question(quiz_num - 1)
+                remaining = len(self.quiz_manager.get_all_questions())
 
                 await update.message.reply_text(
-                    f"✅ Quiz #{quiz_num} has been deleted successfully.",
+                    f"""✅ 𝗤𝘂𝗶𝘇 𝗗𝗲𝗹𝗲𝘁𝗲𝗱
+════════════════
+Successfully deleted quiz #{quiz_num}
+
+📊 𝗦𝘁𝗮𝘁𝘀:
+• Remaining quizzes: {remaining}
+
+ℹ️ Use /editquiz to view remaining quizzes
+════════════════""",
                     parse_mode=ParseMode.MARKDOWN
                 )
                 logger.info(f"Successfully deleted quiz #{quiz_num}")
 
             except ValueError:
                 await update.message.reply_text(
-                    "❌ Invalid quiz number format. Please use a number.",
+                    """❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗜𝗻𝗽𝘂𝘁
+════════════════
+Please provide a valid number.
+
+📝 Usage:
+/delquiz_confirm [quiz_number]
+════════════════""",
                     parse_mode=ParseMode.MARKDOWN
                 )
 
@@ -1182,7 +1240,11 @@ Use /help to see all available commands! 🎮"""
             error_msg = f"Error in delquiz_confirm command: {str(e)}\n{traceback.format_exc()}"
             logger.error(error_msg)
             await update.message.reply_text(
-                "❌ Error deleting quiz.",
+                """❌ 𝗘𝗿𝗿𝗼𝗿
+════════════════
+Failed to delete quiz.
+Please try again later.
+════════════════""",
                 parse_mode=ParseMode.MARKDOWN
             )
 
