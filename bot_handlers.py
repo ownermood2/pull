@@ -2,7 +2,6 @@ import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-from apscheduler.schedulers.background import BackgroundScheduler
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -10,8 +9,6 @@ logger = logging.getLogger(__name__)
 class TelegramQuizBot:
     def __init__(self, quiz_manager):
         self.quiz_manager = quiz_manager
-        self.scheduler = BackgroundScheduler()
-        self.scheduler.start()
         self.active_quizzes = {}
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -42,7 +39,6 @@ Available commands:
 /start - Start the bot
 /help - Show this help message
 /score - Check your score
-/quiz - Start a quiz manually (admin only)
         """
         await update.message.reply_text(help_text)
 
@@ -122,32 +118,40 @@ async def setup_bot(quiz_manager):
         logger.error("TELEGRAM_TOKEN not found in environment variables")
         raise ValueError("TELEGRAM_TOKEN environment variable is required")
 
-    application = Application.builder().token(token).build()
+    try:
+        # Build application
+        application = Application.builder().token(token).build()
 
-    # Add handlers
-    application.add_handler(CommandHandler("start", bot.start))
-    application.add_handler(CommandHandler("help", bot.help))
-    application.add_handler(CommandHandler("score", bot.score))
-    application.add_handler(CallbackQueryHandler(bot.handle_answer, pattern="^quiz:"))
+        # Add handlers
+        application.add_handler(CommandHandler("start", bot.start))
+        application.add_handler(CommandHandler("help", bot.help))
+        application.add_handler(CommandHandler("score", bot.score))
+        application.add_handler(CallbackQueryHandler(bot.handle_answer, pattern="^quiz:"))
 
-    # Schedule quiz every 20 minutes
-    async def scheduled_quiz(context: ContextTypes.DEFAULT_TYPE):
-        logger.info("Starting scheduled quiz distribution")
-        active_chats = quiz_manager.get_active_chats()
-        logger.info(f"Found {len(active_chats)} active chats")
-        for chat_id in active_chats:
-            try:
-                await bot.send_quiz(chat_id, context)
-            except Exception as e:
-                logger.error(f"Failed to send quiz to chat {chat_id}: {e}")
+        # Schedule quiz every 20 minutes
+        async def scheduled_quiz():
+            logger.info("Starting scheduled quiz distribution")
+            active_chats = quiz_manager.get_active_chats()
+            logger.info(f"Found {len(active_chats)} active chats")
 
-    application.job_queue.run_repeating(scheduled_quiz, interval=1200)  # 20 minutes
-    logger.info("Quiz scheduler configured")
+            for chat_id in active_chats:
+                try:
+                    await bot.send_quiz(chat_id, application)
+                except Exception as e:
+                    logger.error(f"Failed to send quiz to chat {chat_id}: {e}")
 
-    # Start the bot
-    logger.info("Starting Telegram bot application")
-    await application.initialize()
-    await application.start()
-    await application.run_polling()
+        # Start the scheduler job
+        application.job_queue.run_repeating(scheduled_quiz, interval=1200)  # 20 minutes
+        logger.info("Quiz scheduler configured")
 
-    return bot
+        # Start the bot
+        logger.info("Starting Telegram bot application")
+        await application.initialize()
+        await application.start()
+        await application.run_polling()
+
+        return bot
+
+    except Exception as e:
+        logger.error(f"Failed to setup Telegram bot: {e}")
+        raise

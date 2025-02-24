@@ -1,6 +1,7 @@
 import os
 import logging
 import asyncio
+from flask import Flask
 from app import app, init_bot
 from quiz_manager import QuizManager
 import threading
@@ -21,6 +22,7 @@ def start_flask():
         raise
 
 async def async_main():
+    """Main async function to run both Flask and Telegram bot"""
     # Check for required environment variables
     if not os.environ.get("TELEGRAM_TOKEN"):
         logger.error("TELEGRAM_TOKEN environment variable is not set")
@@ -46,7 +48,9 @@ async def async_main():
         raise
 
 def main():
+    """Entry point of the application"""
     try:
+        # Run the async main function
         asyncio.run(async_main())
     except KeyboardInterrupt:
         logger.info("Application shutdown requested")
