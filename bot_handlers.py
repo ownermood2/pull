@@ -3,7 +3,7 @@ import logging
 import traceback
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
-from telegram import Update, Poll
+from telegram import Update, Poll, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -24,6 +24,48 @@ class TelegramQuizBot:
         self.COOLDOWN_PERIOD = 3  # seconds between commands
         self.command_history = defaultdict(lambda: deque(maxlen=10))  # Store last 10 commands per chat
         self.cleanup_interval = 3600  # 1 hour in seconds
+
+    async def check_admin_status(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+        """Check if bot is admin in the chat"""
+        try:
+            bot_member = await context.bot.get_chat_member(chat_id, context.bot.id)
+            return bot_member.status in ['administrator', 'creator']
+        except Exception as e:
+            logger.error(f"Error checking admin status: {e}")
+            return False
+
+    async def send_admin_reminder(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send a professional reminder to make bot admin"""
+        # First check if bot is already admin
+        is_admin = await self.check_admin_status(chat_id, context)
+        if is_admin:
+            return  # Don't send reminder if bot is already admin
+
+        reminder_message = """🔔 𝗔𝗱𝗺𝗶𝗻 𝗥𝗲𝗾𝘂𝗲𝘀𝘁
+════════════════
+📌 To enable all quiz features, please:
+1. Click Group Settings
+2. Select Administrators
+3. Add "IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII" as Admin
+
+🎯 𝗕𝗲𝗻𝗲𝗳𝗶𝘁𝘀
+• Automatic Quiz Delivery
+• Message Management
+• Enhanced Group Analytics
+• Leaderboard Updates
+
+✨ Upgrade your quiz experience now!
+════════════════"""
+
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=reminder_message,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            logger.info(f"Sent admin reminder to chat {chat_id}")
+        except Exception as e:
+            logger.error(f"Failed to send admin reminder: {e}")
 
     async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
@@ -82,7 +124,7 @@ class TelegramQuizBot:
                     # Get bot messages older than 2 hours
                     messages_to_delete = []
                     async for message in context.bot.get_chat_history(chat_id, limit=100):
-                        if (message.from_user.id == context.bot.id and 
+                        if (message.from_user.id == context.bot.id and
                             (datetime.now() - message.date).total_seconds() > 7200):  # 2 hours
                             messages_to_delete.append(message.message_id)
 
@@ -147,6 +189,7 @@ class TelegramQuizBot:
             await self.application.updater.start_polling()
 
             return self
+
         except Exception as e:
             logger.error(f"Failed to initialize bot: {e}")
             raise
@@ -174,7 +217,6 @@ class TelegramQuizBot:
 
     async def send_welcome_message(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send welcome message when bot joins a group"""
-        # Create "Add to Group/Channel" button
         keyboard = [
             [InlineKeyboardButton(
                 "🔥 Add to Group/Channel 🔥",
@@ -184,18 +226,18 @@ class TelegramQuizBot:
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
-        
+
         🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
         ➜ Auto Quizzes – Fresh quiz every 20 mins!
         ➜ Leaderboard – Track scores & compete!
         ➜ Categories – GK, CA, History & more! /category
         ➜ Instant Results – Answers in real-time!
-        
+
         📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
         /start – Begin your journey
         /help – View commands
         /category – View topics
-        
+
         🔥 Add me as an admin & let's make learning fun!"""
 
         try:
@@ -271,7 +313,43 @@ class TelegramQuizBot:
             chat_id = update.effective_chat.id
             self.quiz_manager.add_active_chat(chat_id)
 
-            await self.send_welcome_message(chat_id, context)
+            keyboard = [
+                [InlineKeyboardButton(
+                    "🔥 Add to Group/Channel 🔥",
+                    url=f"https://t.me/{context.bot.username}?startgroup=true"
+                )]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
+
+🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
+➜ Auto Quizzes – Fresh quiz every 20 mins!
+➜ Leaderboard – Track scores & compete!
+➜ Categories – GK, CA, History & more! /category
+➜ Instant Results – Answers in real-time!
+
+📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
+/start – Begin your journey
+/help – View commands
+/category – View topics
+
+🔥 Add me as an admin & let's make learning fun!"""
+
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=welcome_message,
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+            # If it's a group, check admin status and send quiz if admin
+            if update.effective_chat.type in ["group", "supergroup"]:
+                is_admin = await self.check_admin_status(chat_id, context)
+                if is_admin:
+                    await self.send_quiz(chat_id, context)
+                else:
+                    await self.send_admin_reminder(chat_id, context)
 
         except Exception as e:
             logger.error(f"Error in start command: {e}")
@@ -351,18 +429,18 @@ class TelegramQuizBot:
             stats_message = f"""📊 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗣𝗲𝗿𝘀𝗼𝗻𝗮𝗹 𝗦𝘁𝗮𝘁𝘀
 ════════════════
 👤 IIı {user.first_name} 🇮🇳 ıII
-            
+
 🎯 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
 • Total Quizzes: {stats['total_quizzes']}
 • Correct Answers: {stats['correct_answers']}
 • Success Rate: {stats['success_rate']}%
 • Current Score: {stats['current_score']}
-            
+
 📈 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
 • Today: {stats['today_quizzes']} quizzes
 • This Week: {stats['week_quizzes']} quizzes
 • This Month: {stats['month_quizzes']} quizzes
-            
+
 Use /help to see all available commands! 🎮"""
 
             await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
@@ -389,18 +467,18 @@ Use /help to see all available commands! 🎮"""
             # Header with group analytics
             stats_message = f"""📊 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀 - {chat.title}
 ════════════════
-            
+
 📈 𝗚𝗿𝗼𝘂𝗽 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
 • Total Quizzes: {stats['total_quizzes']}
 • Correct Answers: {stats['total_correct']}
 • Group Accuracy: {stats['group_accuracy']}%
-            
+
 👥 𝗔𝗰𝘁𝗶𝘃𝗲 𝗨𝘀𝗲𝗿𝘀
 • Today: {stats['active_users']['today']}
 • This Week: {stats['active_users']['week']}
 • This Month: {stats['active_users']['month']}
 • Total Members: {stats['active_users']['total']}
-            
+
 🏆 𝗚𝗿𝗼𝘂𝗽 𝗖𝗵𝗮𝗺𝗽𝗶𝗼𝗻𝘀"""
 
             # Add user entries
@@ -545,7 +623,7 @@ Use /help to see all available commands! 🎮"""
             response = f"""📝 𝗤𝘂𝗶𝘇 𝗔𝗱𝗱𝗶𝘁𝗶𝗼𝗻 𝗥𝗲𝗽𝗼𝗿𝘁
 ════════════════
 ✅ Successfully added: {stats['added']} questions
-            
+
 ❌ 𝗥𝗲𝗷𝗲𝗰𝘁𝗲𝗱:
 • Duplicates: {stats['rejected']['duplicates']}
 • Invalid Format: {stats['rejected']['invalid_format']}
@@ -627,13 +705,13 @@ Use /help to see all available commands! 🎮"""
 👤 Total Users: {total_users}  
 👥 Active Groups Today: {active_groups_today}  
 👤 Active Users Today: {active_users_today}  
-            
+
 ⚡ 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗲𝗿
 📅 QuizzesSent Today: {today_quizzes}  
 📆 This Week: {week_quizzes}  
 📊 This Month: {month_quizzes}  
 📌 All Time: {all_time_quizzes}  
-            
+
 🚀 Keep the competition going! Use /help to explore more commands! 🎮"""
 
             await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
@@ -670,7 +748,7 @@ Use /help to see all available commands! 🎮"""
 
         except Exception as e:
             logger.error(f"Error in editquiz: {e}")
-            await update.message.reply_text("❌ Error editing quiz.")
+            await update.message.reply_text("❌ Error editing quiz.", parse_mode=ParseMode.MARKDOWN)
 
     async def broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send announcements - Developer only"""
@@ -729,14 +807,14 @@ Use /help to see all available commands! 🎮"""
 ════════════════
 🚀 𝗥𝗲𝘀𝘁𝗿𝗶𝗰𝘁𝗲𝗱 𝗔𝗰𝗰𝗲𝘀𝘀
 🔹 This command is exclusively available to the Developer & His Wife to maintain quiz integrity & security.
-            
+
 📌 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 & ଇ𝗻𝗾𝘂𝗶𝗿𝗶𝗲𝘀
 📩 Contact: @CV_Owner & His Wifu ❤️
 💰 Paid Promotions: Up to 25K GC
 📝 Contribute: Share your quiz ideas
 ⚠️ Report: Issues & bugs
 💡 Suggest: Improvements & enhancements
-            
+
 ✅ Thank you for your cooperation!
 ════════════════"""
         await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
@@ -752,19 +830,24 @@ Use /help to see all available commands! 🎮"""
 
     async def send_admin_reminder(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a professional reminder to make bot admin"""
+        # First check if bot is already admin
+        is_admin = await self.check_admin_status(chat_id, context)
+        if is_admin:
+            return  # Don't send reminder if bot is already admin
+
         reminder_message = """🔔 𝗔𝗱𝗺𝗶𝗻 𝗥𝗲𝗾𝘂𝗲𝘀𝘁
 ════════════════
 📌 To enable all quiz features, please:
 1. Click Group Settings
 2. Select Administrators
 3. Add "IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII" as Admin
-            
+
 🎯 𝗕𝗲𝗻𝗲𝗳𝗶𝘁𝘀
 • Automatic Quiz Delivery
 • Message Management
 • Enhanced Group Analytics
 • Leaderboard Updates
-            
+
 ✨ Upgrade your quiz experience now!
 ════════════════"""
 
@@ -792,7 +875,7 @@ Use /help to see all available commands! 🎮"""
                         try:
                             messages_to_delete = []
                             async for message in context.bot.get_chat_history(chat_id, limit=100):
-                                if (message.from_user.id == context.bot.id and 
+                                if (message.from_user.id == context.bot.id and
                                     (datetime.now() - message.date).total_seconds() > 3600):  # Delete messages older than 1 hour
                                     messages_to_delete.append(message.message_id)
 
