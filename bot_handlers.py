@@ -176,6 +176,7 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("delquiz", self.delquiz))
             self.application.add_handler(CommandHandler("delquiz_confirm", self.delquiz_confirm))
             self.application.add_handler(CommandHandler("broadcast", self.broadcast))
+            self.application.add_handler(CommandHandler("totalquiz", self.totalquiz))
 
             # Handle answers and chat member updates
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
@@ -398,7 +399,8 @@ class TelegramQuizBot:
 /globalstats – Bot stats   
 /editquiz – Modify quizzes  
 /broadcast – Send announcements
-/delquiz - Delete a quiz"""
+/delquiz - Delete a quiz
+/totalquiz - Show total quizzes"""
 
             help_text += "\n════════════════"
             await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
@@ -1094,6 +1096,28 @@ Use /editquiz to view remaining questions
                 "❌ Error deleting question. Please try again.",
                 parse_mode=ParseMode.MARKDOWN
             )
+
+    async def totalquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Show total number of quizzes - Developer only"""
+        try:
+            if not await self.is_developer(update.message.from_user.id):
+                await self._handle_dev_command_unauthorized(update)
+                return
+
+            total_questions = len(self.quiz_manager.get_all_questions())
+
+            response = f"""📊 𝗤𝘂𝗶𝘇 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
+════════════════
+📚 Total Quizzes: {total_questions}
+════════════════
+
+Use /addquiz to add more quizzes!"""
+
+            await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
+
+        except Exception as e:
+            logger.error(f"Error in totalquiz command: {e}")
+            await update.message.reply_text("❌ Error getting total quiz count.")
 
 async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""
