@@ -3,14 +3,13 @@ import logging
 import traceback
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
-from telegram import Update, Poll, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from telegram import Update, Poll
 from telegram.ext import (
     Application,
     CommandHandler,
     PollAnswerHandler,
     ChatMemberHandler,
-    ContextTypes,
-    CallbackQueryHandler
+    ContextTypes
 )
 from telegram.constants import ParseMode
 
@@ -26,57 +25,53 @@ class TelegramQuizBot:
         self.command_history = defaultdict(lambda: deque(maxlen=10))  # Store last 10 commands per chat
         self.cleanup_interval = 3600  # 1 hour in seconds
 
-    async def add_rollback_button(self, chat_id: int, message_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Add rollback button to quiz message"""
-        keyboard = [
-            [InlineKeyboardButton("↩️ Go Back", callback_data=f"rollback_{message_id}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
+    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
-            await context.bot.edit_message_reply_markup(
-                chat_id=chat_id,
-                message_id=message_id,
-                reply_markup=reply_markup
-            )
-        except Exception as e:
-            logger.error(f"Error adding rollback button: {e}")
-
-    async def handle_button(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle button clicks"""
-        query = update.callback_query
-        await query.answer()
-
-        if query.data.startswith("rollback_"):
+            # First, try to delete the last quiz if it exists
             try:
-                # Get the message ID to rollback to
-                msg_id = int(query.data.split("_")[1])
-
-                # Get all messages after this one
-                messages_to_delete = []
-                async for message in context.bot.get_chat_history(
-                    query.message.chat_id,
-                    limit=50,
-                    offset_id=msg_id
-                ):
-                    if message.from_user.id == context.bot.id:
-                        messages_to_delete.append(message.message_id)
-
-                # Delete messages
-                for del_msg_id in messages_to_delete:
-                    try:
-                        await context.bot.delete_message(
-                            chat_id=query.message.chat_id,
-                            message_id=del_msg_id
-                        )
-                    except Exception:
-                        continue
-
-                # Send new quiz
-                await self.send_quiz(query.message.chat_id, context)
-
+                chat_history = self.command_history.get(chat_id, [])
+                if chat_history:
+                    last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
+                    if last_quiz:
+                        msg_id = int(last_quiz.split("_")[1])
+                        await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                        logger.info(f"Deleted previous quiz message {msg_id} in chat {chat_id}")
             except Exception as e:
-                logger.error(f"Error handling rollback: {e}")
+                logger.warning(f"Failed to delete previous quiz: {e}")
+
+            question = self.quiz_manager.get_random_question()
+            if not question:
+                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
+                return
+
+            # Send the poll
+            message = await context.bot.send_poll(
+                chat_id=chat_id,
+                question=question['question'],
+                options=question['options'],
+                type=Poll.QUIZ,
+                correct_option_id=question['correct_answer'],
+                is_anonymous=False
+            )
+
+            if message and message.poll:
+                poll_data = {
+                    'chat_id': chat_id,
+                    'correct_option_id': question['correct_answer'],
+                    'user_answers': {},
+                    'poll_id': message.poll.id,
+                    'question': question['question'],
+                    'timestamp': datetime.now().isoformat()
+                }
+                # Store using proper poll ID key
+                context.bot_data[f"poll_{message.poll.id}"] = poll_data
+                logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
+                self.command_history[chat_id].append(f"/quiz_{message.message_id}")
+
+        except Exception as e:
+            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
+            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
 
     async def scheduled_cleanup(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Automatically clean old messages every hour"""
@@ -131,9 +126,8 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("editquiz", self.editquiz))
             self.application.add_handler(CommandHandler("broadcast", self.broadcast))
 
-            # Handle answers, buttons and chat member updates
+            # Handle answers and chat member updates
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
-            self.application.add_handler(CallbackQueryHandler(self.handle_button))
             self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
 
             # Schedule cleanup and quiz jobs
@@ -191,18 +185,18 @@ class TelegramQuizBot:
 
         welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
         
-🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
-➜ Auto Quizzes – Fresh quiz every 20 mins!
-➜ Leaderboard – Track scores & compete!
-➜ Categories – GK, CA, History & more! /category
-➜ Instant Results – Answers in real-time!
+        🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
+        ➜ Auto Quizzes – Fresh quiz every 20 mins!
+        ➜ Leaderboard – Track scores & compete!
+        ➜ Categories – GK, CA, History & more! /category
+        ➜ Instant Results – Answers in real-time!
         
-📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
-/start – Begin your journey
-/help – View commands
-/category – View topics
+        📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
+        /start – Begin your journey
+        /help – View commands
+        /category – View topics
         
-🔥 Add me as an admin & let's make learning fun!"""
+        🔥 Add me as an admin & let's make learning fun!"""
 
         try:
             await context.bot.send_message(
@@ -215,57 +209,6 @@ class TelegramQuizBot:
             await self.send_quiz(chat_id, context)
         except Exception as e:
             logger.error(f"Error sending welcome message: {e}")
-
-    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send a quiz to a specific chat using native Telegram quiz format"""
-        try:
-            # First, try to delete the last quiz if it exists
-            try:
-                chat_history = self.command_history.get(chat_id, [])
-                if chat_history:
-                    last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
-                    if last_quiz:
-                        msg_id = int(last_quiz.split("_")[1])
-                        await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                        logger.info(f"Deleted previous quiz message {msg_id} in chat {chat_id}")
-            except Exception as e:
-                logger.warning(f"Failed to delete previous quiz: {e}")
-
-            question = self.quiz_manager.get_random_question()
-            if not question:
-                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
-                return
-
-            # Send the poll
-            message = await context.bot.send_poll(
-                chat_id=chat_id,
-                question=question['question'],
-                options=question['options'],
-                type=Poll.QUIZ,
-                correct_option_id=question['correct_answer'],
-                is_anonymous=False
-            )
-
-            if message and message.poll:
-                # Add rollback button
-                await self.add_rollback_button(chat_id, message.message_id, context)
-
-                poll_data = {
-                    'chat_id': chat_id,
-                    'correct_option_id': question['correct_answer'],
-                    'user_answers': {},
-                    'poll_id': message.poll.id,
-                    'question': question['question'],
-                    'timestamp': datetime.now().isoformat()
-                }
-                # Store using proper poll ID key
-                context.bot_data[f"poll_{message.poll.id}"] = poll_data
-                logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
-                self.command_history[chat_id].append(f"/quiz_{message.message_id}")
-
-        except Exception as e:
-            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
-            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
 
     async def handle_answer(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle quiz answers"""
@@ -388,7 +331,7 @@ class TelegramQuizBot:
 • Constitution & Law ⚖
 • Arts & Literature 🎭
 • Sports & Games 🎮  
-            
+
 🎯 Stay tuned! More quizzes coming soon!  
 🛠 Need help? Use /help for more commands!"""
 
