@@ -193,9 +193,33 @@ class TelegramQuizBot:
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show user's personal stats"""
         try:
-            user_id = update.message.from_user.id
-            score = self.quiz_manager.get_score(user_id)
-            await update.message.reply_text(f"Your total score: {score} points 🏆")
+            user = update.message.from_user
+            stats = self.quiz_manager.get_user_stats(user.id)
+
+            stats_message = f"""📊 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗣𝗲𝗿𝘀𝗼𝗻𝗮𝗹 𝗦𝘁𝗮𝘁𝘀
+════════════════
+
+👤 {user.first_name}
+
+🎯 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
+• Total Quizzes: {stats['total_quizzes']}
+• Correct Answers: {stats['correct_answers']}
+• Success Rate: {stats['success_rate']}%
+• Current Score: {stats['current_score']}
+
+📈 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
+• Today: {stats['today_quizzes']} quizzes
+• This Week: {stats['week_quizzes']} quizzes
+• This Month: {stats['month_quizzes']} quizzes
+
+🏆 𝗔𝗰𝗵𝗶𝗲𝘃𝗲𝗺𝗲𝗻𝘁𝘀
+• Current Streak: {stats['current_streak']} 🔥
+• Longest Streak: {stats['longest_streak']} ⭐
+• Category Master: {stats['category_master'] or 'None'}
+
+Use /help to see all available commands! 🎮"""
+
+            await update.message.reply_text(stats_message)
         except Exception as e:
             logger.error(f"Error getting user stats: {e}")
             await update.message.reply_text("Error retrieving your stats.")
@@ -203,8 +227,28 @@ class TelegramQuizBot:
     async def groupstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show group performance stats"""
         try:
-            chat_id = update.effective_chat.id
-            await update.message.reply_text("Group statistics feature coming soon! 📊")
+            chat = update.effective_chat
+            stats = self.quiz_manager.get_group_stats(chat.id)
+
+            stats_message = f"""📊 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝘀
+════════════════
+
+👥 Group: {chat.title or 'Private Chat'}
+
+🎯 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
+• Total Quizzes: {stats['total_quizzes']}
+• Active Users: {stats['active_users']}
+• Top Scorer: {stats['top_scorer'] or 'None'}
+• Highest Score: {stats['top_score']}
+
+🏆 Coming soon:
+• Weekly Leaderboard
+• Monthly Champions
+• Category Rankings
+
+Use /help to see all available commands! 🎮"""
+
+            await update.message.reply_text(stats_message)
         except Exception as e:
             logger.error(f"Error getting group stats: {e}")
             await update.message.reply_text("Error retrieving group stats.")
