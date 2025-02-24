@@ -177,7 +177,13 @@ class TelegramQuizBot:
             if answer.user.id and answer.option_ids:
                 poll = context.bot_data.get(answer.poll_id)
                 if poll and poll.correct_option_id in answer.option_ids:
+                    # Record both global and group-specific score
                     self.quiz_manager.increment_score(answer.user.id)
+
+                    # If answer was in a group, record group stats
+                    chat_id = getattr(update.effective_chat, 'id', None)
+                    if chat_id:
+                        self.quiz_manager.record_group_attempt(answer.user.id, chat_id, True)
 
         except Exception as e:
             logger.error(f"Error handling answer: {e}")
@@ -224,28 +230,44 @@ Use /help to see all available commands! 🎮"""
             await update.message.reply_text("Error retrieving your stats.")
 
     async def groupstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show group performance stats"""
+        """Show group performance stats - only works in groups"""
         try:
             chat = update.effective_chat
-            stats = self.quiz_manager.get_group_stats(chat.id)
 
-            stats_message = f"""📊 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝘀
+            # Check if command is used in a group
+            if not chat.type.endswith('group'):
+                await update.message.reply_text("This command only works in groups! 👥")
+                return
+
+            stats = self.quiz_manager.get_group_leaderboard(chat.id)
+
+            if not stats['leaderboard']:
+                await update.message.reply_text("No quiz participants in this group yet! Start taking quizzes to appear here! 🎯")
+                return
+
+            # Header
+            stats_message = f"""📊 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀 - {chat.title}
 ════════════════
+👥 Active Users: {stats['active_users']}
+📝 Total Quizzes: {stats['total_quizzes']}
 
-👥 Group: {chat.title or 'Private Chat'}
+   🏆 Group Champions\n"""
 
-🎯 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
-• Total Quizzes: {stats['total_quizzes']}
-• Active Users: {stats['active_users']}
-• Top Scorer: {stats['top_scorer'] or 'None'}
-• Highest Score: {stats['top_score']}
+            # Add user entries
+            for rank, entry in enumerate(stats['leaderboard'], 1):
+                try:
+                    # Get user info from Telegram
+                    user = await context.bot.get_chat(entry['user_id'])
+                    username = user.first_name or user.username or "Anonymous"
 
-🏆 Coming soon:
-• Weekly Leaderboard
-• Monthly Champions
-• Category Rankings
-
-Use /help to see all available commands! 🎮"""
+                    stats_message += f"\n   🏅 {rank}. {username}\n"
+                    stats_message += f"      ✅ Attend: {entry['total_attempts']}\n"
+                    stats_message += f"      🎯 Correct: {entry['correct_answers']}\n"
+                    stats_message += f"      ❌ Wrong: {entry['wrong_answers']}\n"
+                    stats_message += f"      📊 Accuracy: {entry['accuracy']}%\n"
+                except Exception as e:
+                    logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
+                    continue
 
             await update.message.reply_text(stats_message)
         except Exception as e:

@@ -69,7 +69,8 @@ class QuizManager:
             'last_correct_date': None,
             'category_scores': {},
             'daily_activity': {},
-            'last_quiz_date': None
+            'last_quiz_date': None,
+            'groups': {} #Added to support group stats
         }
 
     def record_attempt(self, user_id: int, is_correct: bool, category: str = None):
@@ -169,15 +170,64 @@ class QuizManager:
             'category_master': category_master
         }
 
-    def get_group_stats(self, chat_id: int) -> Dict:
-        """Get comprehensive stats for a group"""
-        # For future implementation
+    def get_group_leaderboard(self, chat_id: int) -> Dict:
+        """Get group-specific leaderboard with user stats"""
+        leaderboard = []
+
+        # Filter stats for users who have participated in this group
+        for user_id, stats in self.stats.items():
+            if str(chat_id) in stats.get('groups', {}):
+                group_stats = stats['groups'][str(chat_id)]
+                total_attempts = group_stats.get('total_quizzes', 0)
+                correct_answers = group_stats.get('correct_answers', 0)
+                wrong_answers = total_attempts - correct_answers
+                accuracy = (correct_answers / total_attempts * 100) if total_attempts > 0 else 0
+
+                leaderboard.append({
+                    'user_id': int(user_id),
+                    'total_attempts': total_attempts,
+                    'correct_answers': correct_answers,
+                    'wrong_answers': wrong_answers,
+                    'accuracy': round(accuracy, 1),
+                    'score': group_stats.get('score', 0)
+                })
+
+        # Sort by score and get top 10
+        leaderboard.sort(key=lambda x: x['score'], reverse=True)
         return {
-            'total_quizzes': 0,
-            'active_users': 0,
-            'top_scorer': None,
-            'top_score': 0
+            'total_quizzes': sum(user['total_attempts'] for user in leaderboard),
+            'active_users': len(leaderboard),
+            'leaderboard': leaderboard[:10]
         }
+
+    def record_group_attempt(self, user_id: int, chat_id: int, is_correct: bool):
+        """Record a quiz attempt for a user in a specific group"""
+        user_id = str(user_id)
+        chat_id = str(chat_id)
+
+        if user_id not in self.stats:
+            self._init_user_stats(user_id)
+
+        stats = self.stats[user_id]
+        if 'groups' not in stats:
+            stats['groups'] = {}
+
+        if chat_id not in stats['groups']:
+            stats['groups'][chat_id] = {
+                'total_quizzes': 0,
+                'correct_answers': 0,
+                'score': 0
+            }
+
+        group_stats = stats['groups'][chat_id]
+        group_stats['total_quizzes'] += 1
+
+        if is_correct:
+            group_stats['correct_answers'] += 1
+            group_stats['score'] += 1
+
+        self.save_data()
+
 
     def add_question(self, question: str, options: List[str], correct_answer: int):
         self.questions.append({
