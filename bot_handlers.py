@@ -445,26 +445,29 @@ Use /help to see all available commands! 🎮"""
             questions_data = []
             message_text = content[1].strip()
 
-            # Check if it's the single question format (using |)
-            if "|" in message_text:
-                parts = message_text.split("|")
-                if len(parts) != 6:
-                    await update.message.reply_text(
-                        "❌ Please provide questions in the correct format.\n\n"
-                        "For single question:\n"
-                        "/addquiz question | option1 | option2 | option3 | option4 | correct_number\n\n"
-                        "For multiple questions (using the | format):\n"
-                        "/addquiz question1 | option1 | option2 | option3 | option4 | correct_number\n"
-                        "/addquiz question2 | option1 | option2 | option3 | option4 | correct_number\n\n"
-                        "Add more Quiz /addquiz !"
-                    )
-                    return
+            # Split by newlines to handle multiple questions
+            lines = message_text.split('\n')
+            for line in lines:
+                line = line.strip()
+                if not line or not '|' in line:
+                    continue
 
-                questions_data.append({
-                    'question': parts[0].strip(),
-                    'options': [p.strip() for p in parts[1:5]],
-                    'correct_answer': int(parts[5].strip()) - 1
-                })
+                parts = line.split("|")
+                if len(parts) != 6:
+                    continue
+
+                try:
+                    correct_answer = int(parts[5].strip()) - 1
+                    if not (0 <= correct_answer < 4):
+                        continue
+
+                    questions_data.append({
+                        'question': parts[0].strip(),
+                        'options': [p.strip() for p in parts[1:5]],
+                        'correct_answer': correct_answer
+                    })
+                except (ValueError, IndexError):
+                    continue
 
             if not questions_data:
                 await update.message.reply_text(
