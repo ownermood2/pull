@@ -17,4 +17,5 @@ dependencies = [
     "flask-wtf>=1.2.2",
     "psutil>=7.0.0",
     "requests>=2.32.3",
+    "trafilatura>=2.0.0",
 ]

@@ -28,6 +28,7 @@ class QuizManager:
         # Track recently asked questions per chat
         self.recent_questions = defaultdict(lambda: deque(maxlen=50))  # Store last 50 questions per chat
         self.last_question_time = defaultdict(dict)  # Track when each question was last asked in each chat
+        self.available_questions = defaultdict(list)  # Track available questions per chat
 
     def _initialize_files(self):
         """Initialize data files with proper error handling"""
@@ -312,6 +313,11 @@ class QuizManager:
             logger.error(f"Error recording group attempt: {e}")
             raise
 
+    def _initialize_available_questions(self, chat_id: int):
+        """Initialize or reset available questions for a chat"""
+        self.available_questions[chat_id] = list(range(len(self.questions)))
+        random.shuffle(self.available_questions[chat_id])
+
     @lru_cache(maxsize=100)
     def get_random_question(self, chat_id: int = None) -> Optional[Dict[str, Any]]:
         """Get a random question avoiding recent ones with improved tracking"""
@@ -319,46 +325,29 @@ class QuizManager:
             if not self.questions:
                 return None
 
-            current_time = datetime.now()
-
             # If no chat_id provided, return completely random
             if not chat_id:
                 return random.choice(self.questions)
 
-            # Get all questions that haven't been asked recently in this chat
-            asked_questions = set(self.recent_questions[chat_id])
-            available_questions = [
-                q for q in self.questions
-                if q['question'] not in asked_questions
-            ]
+            # Initialize available questions if needed
+            if not self.available_questions[chat_id]:
+                self._initialize_available_questions(chat_id)
 
-            # If too few questions available, clear old history
-            if len(available_questions) < len(self.questions) * 0.2:  # Less than 20% available
-                # Remove questions older than 6 hours
-                old_time = current_time - timedelta(hours=6)
-                self.recent_questions[chat_id] = deque(
-                    [q for q in self.recent_questions[chat_id]
-                     if self.last_question_time[chat_id].get(q, old_time) > old_time],
-                    maxlen=50
-                )
-                asked_questions = set(self.recent_questions[chat_id])
-                available_questions = [
-                    q for q in self.questions
-                    if q['question'] not in asked_questions
-                ]
+            # Get the next question index from the shuffled list
+            question_index = self.available_questions[chat_id].pop()
+            question = self.questions[question_index]
 
-            # If still no questions available, clear all history
-            if not available_questions:
-                self.recent_questions[chat_id].clear()
-                self.last_question_time[chat_id].clear()
-                available_questions = self.questions
-
-            # Select a random question and update tracking
-            question = random.choice(available_questions)
+            # Track this question
             self.recent_questions[chat_id].append(question['question'])
-            self.last_question_time[chat_id][question['question']] = current_time
+            self.last_question_time[chat_id][question['question']] = datetime.now()
 
-            logger.info(f"Selected new question for chat {chat_id}. Available questions: {len(available_questions)}")
+            # If we've used all questions, reset the pool
+            if not self.available_questions[chat_id]:
+                self._initialize_available_questions(chat_id)
+                logger.info(f"Reset question pool for chat {chat_id}")
+
+            logger.info(f"Selected question {question_index} for chat {chat_id}. "
+                       f"Remaining questions: {len(self.available_questions[chat_id])}")
             return question
 
         except Exception as e:
@@ -435,7 +424,6 @@ class QuizManager:
 
     def add_questions(self, questions_data: List[Dict]) -> Dict:
         """Add multiple questions with validation and duplicate detection
-
         Args:
             questions_data: List of question dictionaries with format:
                 {
@@ -443,7 +431,6 @@ class QuizManager:
                     'options': List[str],
                     'correct_answer': int
                 }
-
         Returns:
             Dict with stats about added/rejected questions
         """
@@ -569,11 +556,13 @@ class QuizManager:
             cutoff_time = current_time - timedelta(hours=24)
 
             for chat_id in list(self.recent_questions.keys()):
-                # Clear tracking for chats with no recent activity
+                # Clear tracking for inactive chats
                 if not self.recent_questions[chat_id]:
                     del self.recent_questions[chat_id]
                     if chat_id in self.last_question_time:
                         del self.last_question_time[chat_id]
+                    if chat_id in self.available_questions:
+                        del self.available_questions[chat_id]
                     continue
 
                 # Remove old question timestamps
