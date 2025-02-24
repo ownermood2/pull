@@ -293,7 +293,7 @@ class TelegramQuizBot:
 
             stats_message = f"""📊 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗣𝗲𝗿𝘀𝗼𝗻𝗮𝗹 𝗦𝘁𝗮𝘁𝘀
 ════════════════
-👤 {user.first_name}
+👤 IIı {user.first_name} 🇮🇳 ıII
 
 🎯 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
 • Total Quizzes: {stats['total_quizzes']}
@@ -305,11 +305,6 @@ class TelegramQuizBot:
 • Today: {stats['today_quizzes']} quizzes
 • This Week: {stats['week_quizzes']} quizzes
 • This Month: {stats['month_quizzes']} quizzes
-
-🏆 𝗔𝗰𝗵𝗶𝗲𝘃𝗲𝗺𝗲𝗻𝘁𝘀
-• Current Streak: {stats['current_streak']} 🔥
-• Longest Streak: {stats['longest_streak']} ⭐
-• Category Master: {stats['category_master'] or 'None'}
 
 Use /help to see all available commands! 🎮"""
 
