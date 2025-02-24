@@ -36,12 +36,18 @@ class TelegramQuizBot:
 
     async def send_admin_reminder(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a professional reminder to make bot admin"""
-        # First check if bot is already admin
-        is_admin = await self.check_admin_status(chat_id, context)
-        if is_admin:
-            return  # Don't send reminder if bot is already admin
+        try:
+            # First check if this is a group chat
+            chat = await context.bot.get_chat(chat_id)
+            if chat.type not in ["group", "supergroup"]:
+                return  # Don't send reminder in private chats
 
-        reminder_message = """🔔 𝗔𝗱𝗺𝗶𝗻 𝗥𝗲𝗾𝘂𝗲𝘀𝘁
+            # Then check if bot is already admin
+            is_admin = await self.check_admin_status(chat_id, context)
+            if is_admin:
+                return  # Don't send reminder if bot is already admin
+
+            reminder_message = """🔔 𝗔𝗱𝗺𝗶𝗻 𝗥𝗲𝗾𝘂𝗲𝘀𝘁
 ════════════════
 📌 To enable all quiz features, please:
 1. Click Group Settings
@@ -57,13 +63,13 @@ class TelegramQuizBot:
 ✨ Upgrade your quiz experience now!
 ════════════════"""
 
-        try:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=reminder_message,
                 parse_mode=ParseMode.MARKDOWN
             )
-            logger.info(f"Sent admin reminder to chat {chat_id}")
+            logger.info(f"Sent admin reminder to group {chat_id}")
+
         except Exception as e:
             logger.error(f"Failed to send admin reminder: {e}")
 
@@ -233,11 +239,6 @@ class TelegramQuizBot:
         ➜ Categories – GK, CA, History & more! /category
         ➜ Instant Results – Answers in real-time!
 
-        📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
-        /start – Begin your journey
-        /help – View commands
-        /category – View topics
-
         🔥 Add me as an admin & let's make learning fun!"""
 
         try:
@@ -311,6 +312,7 @@ class TelegramQuizBot:
         """Handle the /start command"""
         try:
             chat_id = update.effective_chat.id
+            chat_type = update.effective_chat.type
             self.quiz_manager.add_active_chat(chat_id)
 
             keyboard = [
@@ -334,7 +336,7 @@ class TelegramQuizBot:
 /help – View commands
 /category – View topics
 
-🔥 Add me as an admin & let's make learning fun!"""
+🔥 Add me to your groups for quiz fun!"""
 
             await context.bot.send_message(
                 chat_id=chat_id,
@@ -343,13 +345,16 @@ class TelegramQuizBot:
                 parse_mode=ParseMode.MARKDOWN
             )
 
-            # If it's a group, check admin status and send quiz if admin
-            if update.effective_chat.type in ["group", "supergroup"]:
+            # If it's a group, check admin status and handle accordingly
+            if chat_type in ["group", "supergroup"]:
                 is_admin = await self.check_admin_status(chat_id, context)
                 if is_admin:
                     await self.send_quiz(chat_id, context)
                 else:
                     await self.send_admin_reminder(chat_id, context)
+            elif chat_type == "private":
+                # In private chat, just send a demo quiz
+                await self.send_quiz(chat_id, context)
 
         except Exception as e:
             logger.error(f"Error in start command: {e}")
@@ -830,12 +835,18 @@ Use /help to see all available commands! 🎮"""
 
     async def send_admin_reminder(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a professional reminder to make bot admin"""
-        # First check if bot is already admin
-        is_admin = await self.check_admin_status(chat_id, context)
-        if is_admin:
-            return  # Don't send reminder if bot is already admin
+        try:
+            # First check if this is a group chat
+            chat = await context.bot.get_chat(chat_id)
+            if chat.type not in ["group", "supergroup"]:
+                return  # Don't send reminder in private chats
 
-        reminder_message = """🔔 𝗔𝗱𝗺𝗶𝗻 𝗥𝗲𝗾𝘂𝗲𝘀𝘁
+            # Then check if bot is already admin
+            is_admin = await self.check_admin_status(chat_id, context)
+            if is_admin:
+                return  # Don't send reminder if bot is already admin
+
+            reminder_message = """🔔 𝗔𝗱𝗺𝗶𝗻 𝗥𝗲𝗾𝘂𝗲𝘀𝘁
 ════════════════
 📌 To enable all quiz features, please:
 1. Click Group Settings
@@ -851,13 +862,13 @@ Use /help to see all available commands! 🎮"""
 ✨ Upgrade your quiz experience now!
 ════════════════"""
 
-        try:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=reminder_message,
                 parse_mode=ParseMode.MARKDOWN
             )
-            logger.info(f"Sent admin reminder to chat {chat_id}")
+            logger.info(f"Sent admin reminder to group {chat_id}")
+
         except Exception as e:
             logger.error(f"Failed to send admin reminder: {e}")
 
