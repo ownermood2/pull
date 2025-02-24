@@ -171,39 +171,76 @@ class QuizManager:
         }
 
     def get_group_leaderboard(self, chat_id: int) -> Dict:
-        """Get group-specific leaderboard with user stats"""
+        """Get group-specific leaderboard with detailed analytics"""
         leaderboard = []
+        chat_id_str = str(chat_id)
+        total_group_quizzes = 0
+        total_correct_answers = 0
+        active_users_today = set()
+        active_users_week = set()
+        active_users_month = set()
+        current_date = datetime.now()
+        today = current_date.strftime('%Y-%m-%d')
+        week_start = (current_date - timedelta(days=current_date.weekday())).strftime('%Y-%m-%d')
+        month_start = current_date.replace(day=1).strftime('%Y-%m-%d')
 
         # Filter stats for users who have participated in this group
         for user_id, stats in self.stats.items():
-            if str(chat_id) in stats.get('groups', {}):
-                group_stats = stats['groups'][str(chat_id)]
-                total_attempts = group_stats.get('total_quizzes', 0)
-                correct_answers = group_stats.get('correct_answers', 0)
-                wrong_answers = total_attempts - correct_answers
-                accuracy = (correct_answers / total_attempts * 100) if total_attempts > 0 else 0
+            if chat_id_str in stats.get('groups', {}):
+                group_stats = stats['groups'][chat_id_str]
+                user_total_attempts = group_stats.get('total_quizzes', 0)
+                user_correct_answers = group_stats.get('correct_answers', 0)
+                user_wrong_answers = user_total_attempts - user_correct_answers
+                accuracy = (user_correct_answers / user_total_attempts * 100) if user_total_attempts > 0 else 0
+
+                # Update group totals
+                total_group_quizzes += user_total_attempts
+                total_correct_answers += user_correct_answers
+
+                # Track active users
+                last_activity = group_stats.get('last_activity_date')
+                if last_activity:
+                    if last_activity == today:
+                        active_users_today.add(user_id)
+                    if last_activity >= week_start:
+                        active_users_week.add(user_id)
+                    if last_activity >= month_start:
+                        active_users_month.add(user_id)
 
                 leaderboard.append({
                     'user_id': int(user_id),
-                    'total_attempts': total_attempts,
-                    'correct_answers': correct_answers,
-                    'wrong_answers': wrong_answers,
+                    'total_attempts': user_total_attempts,
+                    'correct_answers': user_correct_answers,
+                    'wrong_answers': user_wrong_answers,
                     'accuracy': round(accuracy, 1),
-                    'score': group_stats.get('score', 0)
+                    'score': group_stats.get('score', 0),
+                    'last_active': group_stats.get('last_activity_date', 'Never')
                 })
 
         # Sort by score and get top 10
         leaderboard.sort(key=lambda x: x['score'], reverse=True)
+
+        # Calculate group performance metrics
+        group_accuracy = (total_correct_answers / total_group_quizzes * 100) if total_group_quizzes > 0 else 0
+
         return {
-            'total_quizzes': sum(user['total_attempts'] for user in leaderboard),
-            'active_users': len(leaderboard),
+            'total_quizzes': total_group_quizzes,
+            'total_correct': total_correct_answers,
+            'group_accuracy': round(group_accuracy, 1),
+            'active_users': {
+                'today': len(active_users_today),
+                'week': len(active_users_week),
+                'month': len(active_users_month),
+                'total': len(leaderboard)
+            },
             'leaderboard': leaderboard[:10]
         }
 
     def record_group_attempt(self, user_id: int, chat_id: int, is_correct: bool):
-        """Record a quiz attempt for a user in a specific group"""
+        """Record a quiz attempt for a user in a specific group with timestamp"""
         user_id = str(user_id)
         chat_id = str(chat_id)
+        current_date = datetime.now().strftime('%Y-%m-%d')
 
         if user_id not in self.stats:
             self._init_user_stats(user_id)
@@ -216,15 +253,34 @@ class QuizManager:
             stats['groups'][chat_id] = {
                 'total_quizzes': 0,
                 'correct_answers': 0,
-                'score': 0
+                'score': 0,
+                'last_activity_date': None,
+                'daily_activity': {},
+                'current_streak': 0,
+                'longest_streak': 0
             }
 
         group_stats = stats['groups'][chat_id]
         group_stats['total_quizzes'] += 1
+        group_stats['last_activity_date'] = current_date
+
+        # Update daily activity
+        if current_date not in group_stats['daily_activity']:
+            group_stats['daily_activity'][current_date] = {'attempts': 0, 'correct': 0}
+        group_stats['daily_activity'][current_date]['attempts'] += 1
 
         if is_correct:
             group_stats['correct_answers'] += 1
             group_stats['score'] += 1
+            group_stats['daily_activity'][current_date]['correct'] += 1
+
+            # Update streak
+            if group_stats['last_activity_date'] == (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'):
+                group_stats['current_streak'] += 1
+            else:
+                group_stats['current_streak'] = 1
+
+            group_stats['longest_streak'] = max(group_stats['current_streak'], group_stats['longest_streak'])
 
         self.save_data()
 

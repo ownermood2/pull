@@ -230,7 +230,7 @@ Use /help to see all available commands! 🎮"""
             await update.message.reply_text("Error retrieving your stats.")
 
     async def groupstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show group performance stats - only works in groups"""
+        """Show comprehensive group performance stats - only works in groups"""
         try:
             chat = update.effective_chat
 
@@ -245,13 +245,22 @@ Use /help to see all available commands! 🎮"""
                 await update.message.reply_text("No quiz participants in this group yet! Start taking quizzes to appear here! 🎯")
                 return
 
-            # Header
+            # Header with group analytics
             stats_message = f"""📊 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀 - {chat.title}
 ════════════════
-👥 Active Users: {stats['active_users']}
-📝 Total Quizzes: {stats['total_quizzes']}
 
-   🏆 Group Champions\n"""
+📈 𝗚𝗿𝗼𝘂𝗽 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
+• Total Quizzes: {stats['total_quizzes']}
+• Correct Answers: {stats['total_correct']}
+• Group Accuracy: {stats['group_accuracy']}%
+
+👥 𝗔𝗰𝘁𝗶𝘃𝗲 𝗨𝘀𝗲𝗿𝘀
+• Today: {stats['active_users']['today']}
+• This Week: {stats['active_users']['week']}
+• This Month: {stats['active_users']['month']}
+• Total Members: {stats['active_users']['total']}
+
+🏆 𝗚𝗿𝗼𝘂𝗽 𝗖𝗵𝗮𝗺𝗽𝗶𝗼𝗻𝘀"""
 
             # Add user entries
             for rank, entry in enumerate(stats['leaderboard'], 1):
@@ -260,11 +269,12 @@ Use /help to see all available commands! 🎮"""
                     user = await context.bot.get_chat(entry['user_id'])
                     username = user.first_name or user.username or "Anonymous"
 
-                    stats_message += f"\n   🏅 {rank}. {username}\n"
-                    stats_message += f"      ✅ Attend: {entry['total_attempts']}\n"
-                    stats_message += f"      🎯 Correct: {entry['correct_answers']}\n"
-                    stats_message += f"      ❌ Wrong: {entry['wrong_answers']}\n"
-                    stats_message += f"      📊 Accuracy: {entry['accuracy']}%\n"
+                    stats_message += f"\n\n   🏅 {rank}. {username}"
+                    stats_message += f"\n      ✅ Attend: {entry['total_attempts']}"
+                    stats_message += f"\n      🎯 Correct: {entry['correct_answers']}"
+                    stats_message += f"\n      ❌ Wrong: {entry['wrong_answers']}"
+                    stats_message += f"\n      📊 Accuracy: {entry['accuracy']}%"
+                    stats_message += f"\n      📅 Last Active: {entry['last_active']}"
                 except Exception as e:
                     logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
                     continue
