@@ -2,14 +2,16 @@ import os
 import logging
 import traceback
 from datetime import datetime, timedelta
-from collections import defaultdict
-from telegram import Update, Poll
+from collections import defaultdict, deque
+from telegram import Update, Poll, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
     PollAnswerHandler,
+    ChatMemberHandler,
     ContextTypes
 )
+from telegram.constants import ParseMode
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,8 @@ class TelegramQuizBot:
         self.application = None
         self.command_cooldowns = defaultdict(lambda: defaultdict(int))
         self.COOLDOWN_PERIOD = 3  # seconds between commands
+        self.command_history = defaultdict(lambda: deque(maxlen=10))  # Store last 10 commands per chat
+        self.cleanup_interval = 3600  # 1 hour in seconds
 
     async def initialize(self, token: str):
         """Initialize and start the bot"""
@@ -39,28 +43,37 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("mystats", self.mystats))
             self.application.add_handler(CommandHandler("groupstats", self.groupstats))
             self.application.add_handler(CommandHandler("leaderboard", self.leaderboard))
+            self.application.add_handler(CommandHandler("rollback", self.rollback))
+            self.application.add_handler(CommandHandler("cleanchat", self.clean_chat))
+
+            # Developer commands
             self.application.add_handler(CommandHandler("allreload", self.allreload))
             self.application.add_handler(CommandHandler("addquiz", self.addquiz))
             self.application.add_handler(CommandHandler("globalstats", self.globalstats))
             self.application.add_handler(CommandHandler("editquiz", self.editquiz))
             self.application.add_handler(CommandHandler("broadcast", self.broadcast))
-            self.application.add_handler(PollAnswerHandler(self.handle_answer))
 
-            # Schedule quiz every 20 minutes (1200 seconds)
+            # Handle answers and chat member updates
+            self.application.add_handler(PollAnswerHandler(self.handle_answer))
+            self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+
+            # Schedule cleanup and quiz jobs
             self.application.job_queue.run_repeating(
                 self.scheduled_quiz,
                 interval=1200,
                 first=10
             )
-
-            # Schedule cleanup of old poll data
             self.application.job_queue.run_repeating(
                 self.cleanup_old_polls,
-                interval=3600,  # Every hour
-                first=300  # Start after 5 minutes
+                interval=3600,
+                first=300
+            )
+            self.application.job_queue.run_repeating(
+                self.cleanup_old_messages,
+                interval=self.cleanup_interval,
+                first=self.cleanup_interval
             )
 
-            # Initialize and start polling
             await self.application.initialize()
             await self.application.start()
             await self.application.updater.start_polling()
@@ -69,6 +82,171 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Failed to initialize bot: {e}")
             raise
+
+    async def track_chats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Track when bot is added to or removed from chats"""
+        result = extract_status_change(update.my_chat_member)
+
+        if result is None:
+            return
+
+        was_member, is_member = result
+
+        # Handle chat type
+        chat = update.effective_chat
+        if chat.type in ["group", "supergroup"]:
+            if not was_member and is_member:
+                # Bot was added to a group
+                await self.send_welcome_message(chat.id, context)
+                logger.info(f"Bot added to group {chat.title} ({chat.id})")
+            elif was_member and not is_member:
+                # Bot was removed from a group
+                self.quiz_manager.remove_active_chat(chat.id)
+                logger.info(f"Bot removed from group {chat.title} ({chat.id})")
+
+    async def send_welcome_message(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send welcome message when bot joins a group"""
+        # Create "Add to Group/Channel" button
+        keyboard = [
+            [InlineKeyboardButton(
+                "🔥 Add to Group/Channel 🔥",
+                url=f"https://t.me/{context.bot.username}?startgroup=true"
+            )]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
+
+🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
+➜ Auto Quizzes – Fresh quiz every 20 mins!
+➜ Leaderboard – Track scores & compete!
+➜ Categories – GK, CA, History & more! /category
+➜ Instant Results – Answers in real-time!
+
+📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
+/start – Begin your journey
+/help – View commands
+/category – View topics
+
+🔥 Add me as an admin & let's make learning fun!"""
+
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=welcome_message,
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            # Send first quiz after welcome
+            await self.send_quiz(chat_id, context)
+        except Exception as e:
+            logger.error(f"Error sending welcome message: {e}")
+
+    async def rollback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Rollback the last command in the chat"""
+        chat_id = update.effective_chat.id
+
+        if not self.command_history[chat_id]:
+            await update.message.reply_text("No commands to rollback!")
+            return
+
+        last_command = self.command_history[chat_id].pop()
+        # Implement rollback logic based on command type
+        if last_command.startswith("/quiz"):
+            # Delete last quiz
+            try:
+                await context.bot.delete_message(
+                    chat_id=chat_id,
+                    message_id=last_command.split("_")[1]
+                )
+                await update.message.reply_text("Last quiz rolled back successfully!")
+            except Exception as e:
+                logger.error(f"Error rolling back quiz: {e}")
+                await update.message.reply_text("Failed to rollback last quiz.")
+
+    async def clean_chat(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Clean old bot messages from the chat"""
+        chat_id = update.effective_chat.id
+
+        try:
+            # Get list of message IDs to delete
+            messages_to_delete = []
+            async for message in context.bot.get_chat_history(chat_id, limit=100):
+                if message.from_user.id == context.bot.id:
+                    messages_to_delete.append(message.message_id)
+
+            # Delete messages
+            for msg_id in messages_to_delete:
+                try:
+                    await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                except Exception:
+                    continue
+
+            await update.message.reply_text("Chat cleaned successfully!", delete_after=5)
+        except Exception as e:
+            logger.error(f"Error cleaning chat: {e}")
+            await update.message.reply_text("Failed to clean chat.")
+
+    async def cleanup_old_messages(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Automatically clean old bot messages"""
+        try:
+            for chat_id in self.quiz_manager.get_active_chats():
+                try:
+                    messages_to_delete = []
+                    async for message in context.bot.get_chat_history(chat_id, limit=100):
+                        if (message.from_user.id == context.bot.id and 
+                            (datetime.now() - message.date).total_seconds() > self.cleanup_interval):
+                            messages_to_delete.append(message.message_id)
+
+                    for msg_id in messages_to_delete:
+                        try:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                        except Exception:
+                            continue
+                except Exception as e:
+                    logger.error(f"Error cleaning messages in chat {chat_id}: {e}")
+        except Exception as e:
+            logger.error(f"Error in cleanup_old_messages: {e}")
+
+    async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle the /help command"""
+        try:
+            # Check if user is developer
+            is_dev = await self.is_developer(update.message.from_user.id)
+
+            help_text = """📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
+════════════════
+🎯 𝗚𝗘𝗡𝗘𝗥𝗔𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
+/start – Begin your quiz journey  
+/help – Available commands  
+/category – View Topics
+/quiz – Try a quiz demo  
+
+📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗  
+/mystats - Your Performance 
+/groupstats – Your group performance   
+/leaderboard – See champions  
+
+🛠️ 𝗨𝗧𝗜𝗟𝗜𝗧𝗜𝗘𝗦
+/rollback - Undo last command
+/cleanchat - Remove old messages"""
+
+            # Add developer commands only for developers
+            if is_dev:
+                help_text += """
+
+🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
+/allreload – Full bot restart  
+/addquiz – Add new questions
+/globalstats – Bot stats   
+/editquiz – Modify quizzes  
+/broadcast – Send announcements"""
+
+            help_text += "\n════════════════"
+            await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
+        except Exception as e:
+            logger.error(f"Error in help command: {e}")
+            await update.message.reply_text("Error showing help.")
 
     async def check_cooldown(self, user_id: int, command: str) -> bool:
         """Check if command is on cooldown for user"""
@@ -133,6 +311,7 @@ class TelegramQuizBot:
                 # Store using proper poll ID key
                 context.bot_data[f"poll_{message.poll.id}"] = poll_data
                 logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
+                self.command_history[chat_id].append(f"/quiz_{message.message_id}")
 
         except Exception as e:
             logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
@@ -199,29 +378,7 @@ class TelegramQuizBot:
             chat_id = update.effective_chat.id
             self.quiz_manager.add_active_chat(chat_id)
 
-            welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
-            
-🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
-➜ Auto Quizzes – Fresh quiz every 20 mins!
-➜ Leaderboard – Track scores & compete!
-➜ Categories – GK, CA, History & more! /category
-➜ Instant Results – Answers in real-time!
-            
-📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
-/start – Begin your journey
-/help – View commands
-/category – View topics
-            
-🔥 Add me as an admin & let's make learning fun!"""
-
-            await update.message.reply_text(
-                welcome_message,
-                parse_mode='Markdown',
-                disable_web_page_preview=True
-            )
-
-            # Send first quiz immediately
-            await self.send_quiz(chat_id, context)
+            await self.send_welcome_message(chat_id, context)
 
         except Exception as e:
             logger.error(f"Error in start command: {e}")
@@ -230,29 +387,39 @@ class TelegramQuizBot:
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /help command"""
         try:
-            help_text = """🎯 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦 🎯   
+            # Check if user is developer
+            is_dev = await self.is_developer(update.message.from_user.id)
+
+            help_text = """📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
 ════════════════
-📝 𝗚𝗘𝗡𝗘𝗥𝗔𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
+🎯 𝗚𝗘𝗡𝗘𝗥𝗔𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
 /start – Begin your quiz journey  
 /help – Available commands  
 /category – View Topics
 /quiz – Try a quiz demo  
-            
+
 📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗  
 /mystats - Your Performance 
 /groupstats – Your group performance   
 /leaderboard – See champions  
-            
+
+🛠️ 𝗨𝗧𝗜𝗟𝗜𝗧𝗜𝗘𝗦
+/rollback - Undo last command
+/cleanchat - Remove old messages"""
+
+            # Add developer commands only for developers
+            if is_dev:
+                help_text += """
+
 🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
 /allreload – Full bot restart  
 /addquiz – Add new questions
 /globalstats – Bot stats   
-/editquiz – Modify  quizzes  
-/broadcast –  Send announcements  
-════════════════
-💡 Need Help? Use /help to explore all features! 🌟"""
+/editquiz – Modify quizzes  
+/broadcast – Send announcements"""
 
-            await update.message.reply_text(help_text)
+            help_text += "\n════════════════"
+            await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
         except Exception as e:
             logger.error(f"Error in help command: {e}")
             await update.message.reply_text("Error showing help.")
@@ -279,7 +446,7 @@ class TelegramQuizBot:
 🎯 Stay tuned! More quizzes coming soon!  
 🛠 Need help? Use /help for more commands!"""
 
-            await update.message.reply_text(category_text)
+            await update.message.reply_text(category_text, parse_mode=ParseMode.MARKDOWN)
         except Exception as e:
             logger.error(f"Error showing categories: {e}")
             await update.message.reply_text("Error showing categories.")
@@ -308,7 +475,7 @@ class TelegramQuizBot:
             
 Use /help to see all available commands! 🎮"""
 
-            await update.message.reply_text(stats_message)
+            await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
         except Exception as e:
             logger.error(f"Error getting user stats: {e}")
             await update.message.reply_text("Error retrieving your stats.")
@@ -320,13 +487,13 @@ Use /help to see all available commands! 🎮"""
 
             # Check if command is used in a group
             if not chat.type.endswith('group'):
-                await update.message.reply_text("This command only works in groups! 👥")
+                await update.message.reply_text("This command only works in groups! 👥", parse_mode=ParseMode.MARKDOWN)
                 return
 
             stats = self.quiz_manager.get_group_leaderboard(chat.id)
 
             if not stats['leaderboard']:
-                await update.message.reply_text("No quiz participants in this group yet! Start taking quizzes to appear here! 🎯")
+                await update.message.reply_text("No quiz participants in this group yet! Start taking quizzes to appear here! 🎯", parse_mode=ParseMode.MARKDOWN)
                 return
 
             # Header with group analytics
@@ -363,7 +530,7 @@ Use /help to see all available commands! 🎮"""
                     logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
                     continue
 
-            await update.message.reply_text(stats_message)
+            await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
         except Exception as e:
             logger.error(f"Error getting group stats: {e}")
             await update.message.reply_text("Error retrieving group stats.")
@@ -374,7 +541,7 @@ Use /help to see all available commands! 🎮"""
             leaderboard = self.quiz_manager.get_leaderboard()
 
             if not leaderboard:
-                await update.message.reply_text("No quiz participants yet! Be the first one to start! 🎯")
+                await update.message.reply_text("No quiz participants yet! Be the first one to start! 🎯", parse_mode=ParseMode.MARKDOWN)
                 return
 
             # Header
@@ -396,7 +563,7 @@ Use /help to see all available commands! 🎮"""
                     logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
                     continue
 
-            await update.message.reply_text(leaderboard_text)
+            await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN)
         except Exception as e:
             logger.error(f"Error showing leaderboard: {e}")
             await update.message.reply_text("Error retrieving leaderboard.")
@@ -415,7 +582,7 @@ Use /help to see all available commands! 🎮"""
             self.quiz_manager.get_random_question.cache_clear()
             self.quiz_manager.get_user_stats.cache_clear()
 
-            await update.message.reply_text("✅ Bot data reloaded successfully!\n\n• Questions reloaded\n• Stats refreshed\n• Caches cleared")
+            await update.message.reply_text("✅ Bot data reloaded successfully!\n\n• Questions reloaded\n• Stats refreshed\n• Caches cleared", parse_mode=ParseMode.MARKDOWN)
 
         except Exception as e:
             logger.error(f"Error in allreload: {e}")
@@ -488,7 +655,7 @@ Use /help to see all available commands! 🎮"""
             response = f"""📝 𝗤𝘂𝗶𝘇 𝗔𝗱𝗱𝗶𝘁𝗶𝗼𝗻 𝗥𝗲𝗽𝗼𝗿𝘁
 ════════════════
 ✅ Successfully added: {stats['added']} questions
-
+            
 ❌ 𝗥𝗲𝗷𝗲𝗰𝘁𝗲𝗱:
 • Duplicates: {stats['rejected']['duplicates']}
 • Invalid Format: {stats['rejected']['invalid_format']}
@@ -501,7 +668,7 @@ Use /help to see all available commands! 🎮"""
                 if len(stats['errors']) > 5:
                     response += f"\n• ...and {len(stats['errors']) - 5} more errors"
 
-            await update.message.reply_text(response)
+            await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
 
         except Exception as e:
             logger.error(f"Error in addquiz: {e}")
@@ -579,7 +746,7 @@ Use /help to see all available commands! 🎮"""
             
 🚀 Keep the competition going! Use /help to explore more commands! 🎮"""
 
-            await update.message.reply_text(stats_message)
+            await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
 
         except Exception as e:
             logger.error(f"Error in globalstats: {e}")
@@ -607,9 +774,9 @@ Use /help to see all available commands! 🎮"""
             # Split message if too long
             if len(questions_text) > 4000:
                 for i in range(0, len(questions_text), 4000):
-                    await update.message.reply_text(questions_text[i:i+4000])
+                    await update.message.reply_text(questions_text[i:i+4000], parse_mode=ParseMode.MARKDOWN)
             else:
-                await update.message.reply_text(questions_text)
+                await update.message.reply_text(questions_text, parse_mode=ParseMode.MARKDOWN)
 
         except Exception as e:
             logger.error(f"Error in editquiz: {e}")
@@ -628,7 +795,7 @@ Use /help to see all available commands! 🎮"""
             except IndexError:
                 await update.message.reply_text(
                     "❌ Please provide a message to broadcast.\n"
-                    "Format: /broadcast Your message here"
+                    "Format: /broadcast Your message here", parse_mode=ParseMode.MARKDOWN
                 )
                 return
 
@@ -641,7 +808,7 @@ Use /help to see all available commands! 🎮"""
                 try:
                     await context.bot.send_message(
                         chat_id=chat_id,
-                        text=f"📢 𝗔𝗻𝗻𝗼𝘂𝗻𝗰𝗲𝗺𝗲𝗻𝘁\n════════════════\n\n{message}"
+                        text=f"📢 𝗔𝗻𝗻𝗼𝘂𝗻𝗰𝗲𝗺𝗲𝗻𝘁\n════════════════\n\n{message}", parse_mode=ParseMode.MARKDOWN
                     )
                     success_count += 1
                 except Exception as e:
@@ -651,7 +818,7 @@ Use /help to see all available commands! 🎮"""
             await update.message.reply_text(
                 f"📢 Broadcast Results:\n"
                 f"✅ Successfully sent to: {success_count} chats\n"
-                f"❌ Failed to send to: {fail_count} chats"
+                f"❌ Failed to send to: {fail_count} chats", parse_mode=ParseMode.MARKDOWN
             )
 
         except Exception as e:
@@ -683,7 +850,7 @@ Use /help to see all available commands! 🎮"""
             
 ✅ Thank you for your cooperation!
 ════════════════"""
-        await update.message.reply_text(message)
+        await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
 
     async def scheduled_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send scheduled quizzes to all active chats"""
@@ -707,3 +874,17 @@ async def setup_bot(quiz_manager):
     except Exception as e:
         logger.error(f"Failed to setup Telegram bot: {e}")
         raise
+
+def extract_status_change(chat_member_update):
+    """Extract whether bot was added or removed."""
+    status_change = chat_member_update.difference().get("status")
+    if status_change is None:
+        return None
+
+    old_is_member = chat_member_update.old_chat_member.status in (
+        "member", "administrator", "creator"
+    )
+    new_is_member = chat_member_update.new_chat_member.status in (
+        "member", "administrator", "creator"
+    )
+    return old_is_member, new_is_member
