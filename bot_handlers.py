@@ -759,7 +759,7 @@ Use /help to see all available commands! 🎮"""
                 if any(
                     stats.get('last_quiz_date') == current_date
                                              for stats in self.quiz_manager.stats.values()
-                    if str(chat_id) in stats.get('groups', {})
+                    if str(chat_id) in stats.get('groups{}, {})
                 )
             )
 
@@ -827,7 +827,13 @@ Use /help to see all available commands! 🎮"""
             # Get all questions
             questions = self.quiz_manager.get_all_questions()
             if not questions:
-                await update.message.reply_text("❌ No questions available to edit.")
+                await update.message.reply_text(
+                    """❌ 𝗡𝗼 𝗤𝘂𝗶𝘇𝘇𝗲𝘀 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲
+════════════════
+Add new quizzes using /addquiz command
+════════════════""",
+                    parse_mode=ParseMode.MARKDOWN
+                )
                 return
 
             # Parse arguments for pagination
@@ -861,8 +867,8 @@ Use /help to see all available commands! 🎮"""
 • Total Quizzes: {len(questions)}
 • Showing: #{start_idx + 1} to #{min(end_idx, len(questions))}
 
-🎯 𝗤𝘂𝗶𝘇 𝗟𝗶𝘀𝘁:
-"""
+🎯 𝗤𝘂𝗶𝘇 𝗟𝗶𝘀𝘁:"""
+
             for i, q in enumerate(questions[start_idx:end_idx], start=start_idx + 1):
                 questions_text += f"""
 
@@ -895,7 +901,11 @@ Use /help to see all available commands! 🎮"""
             error_msg = f"Error in editquiz command: {str(e)}\n{traceback.format_exc()}"
             logger.error(error_msg)
             await update.message.reply_text(
-                "❌ Error displaying quizzes. Please try again later.",
+                """❌ 𝗘𝗿𝗿𝗼𝗿
+════════════════
+Failed to display quizzes.
+Please try again later.
+════════════════""",
                 parse_mode=ParseMode.MARKDOWN
             )
 
