@@ -1,0 +1,19 @@
+{
+  "questions": [
+    {
+      "question": "What is the capital of India?",
+      "options": ["Mumbai", "New Delhi", "Kolkata", "Chennai"],
+      "correct_answer": 1
+    },
+    {
+      "question": "Who was the first Prime Minister of India?",
+      "options": ["Jawaharlal Nehru", "Mahatma Gandhi", "Sardar Patel", "Rajendra Prasad"],
+      "correct_answer": 0
+    },
+    {
+      "question": "Which river is known as the Ganga of South India?",
+      "options": ["Kaveri", "Krishna", "Godavari", "Narmada"],
+      "correct_answer": 0
+    }
+  ]
+}

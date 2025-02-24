@@ -7,7 +7,8 @@
     "last_correct_date": null,
     "category_scores": {},
     "daily_activity": {},
-    "last_quiz_date": null
+    "last_quiz_date": null,
+    "groups": {}
   },
   "7104801101": {
     "total_quizzes": 1,
