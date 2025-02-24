@@ -758,7 +758,7 @@ Use /help to see all available commands! 🎮"""
                 1 for chat_id in active_chats
                 if any(
                     stats.get('last_quiz_date') == current_date
-                                        for stats in self.quiz_manager.stats.values()
+                                            for stats in self.quiz_manager.stats.values()
                     if str(chat_id) in stats.get('groups', {})
                 )
             )
@@ -857,6 +857,9 @@ To edit a quiz, use:
 To delete a quiz:
 /delquiz [quiz_number]
 
+ℹ️ Total Questions: {len(questions)}
+ℹ️ Showing: Questions {start_idx + 1} to {min(end_idx, len(questions))}
+
 """
             for i, q in enumerate(questions[start_idx:end_idx], start=start_idx + 1):
                 questions_text += f"""📌 𝗤𝘂𝗶𝘇 #{i}
@@ -872,9 +875,9 @@ To delete a quiz:
             if total_pages > 1:
                 questions_text += f"\n📖 Page {page} of {total_pages}"
                 if page > 1:
-                    questions_text += "\n⬅️ Previous page: /editquiz {prev}".format(prev=page-1)
+                    questions_text += f"\n⬅️ Previous page: /editquiz {page-1}"
                 if page < total_pages:
-                    questions_text += "\n➡️ Next page: /editquiz {next}".format(next=page+1)
+                    questions_text += f"\n➡️ Next page: /editquiz {page+1}"
 
             # Send the formatted message
             await update.message.reply_text(
@@ -887,7 +890,7 @@ To delete a quiz:
             error_msg = f"Error in editquiz command: {str(e)}\n{traceback.format_exc()}"
             logger.error(error_msg)
             await update.message.reply_text(
-                "❌ Error displaying quizzes. Please check logs.",
+                "❌ Error displaying quizzes. Please try again.",
                 parse_mode=ParseMode.MARKDOWN
             )
 
