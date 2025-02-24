@@ -422,22 +422,7 @@ Use /help to see all available commands! 🎮"""
             await update.message.reply_text("❌ Error restarting bot.")
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Add new quiz(zes) - Developer only
-        Format for single question:
-        /addquiz question | option1 | option2 | option3 | option4 | correct_number
-
-        Format for multiple questions:
-        /addquiz
-        Q: question1
-        1. option1
-        2. option2
-        3. option3
-        4. option4
-        A: correct_number
-
-        Q: question2
-        ...etc
-        """
+        """Add new quiz(zes) - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
@@ -450,16 +435,10 @@ Use /help to see all available commands! 🎮"""
                     "❌ Please provide questions in the correct format.\n\n"
                     "For single question:\n"
                     "/addquiz question | option1 | option2 | option3 | option4 | correct_number\n\n"
-                    "For multiple questions:\n"
-                    "/addquiz\n"
-                    "Q: What is the capital of France?\n"
-                    "1. London\n"
-                    "2. Paris\n"
-                    "3. Berlin\n"
-                    "4. Madrid\n"
-                    "A: 2\n\n"
-                    "Q: Next question...\n"
-                    "..."
+                    "For multiple questions (using the | format):\n"
+                    "/addquiz question1 | option1 | option2 | option3 | option4 | correct_number\n"
+                    "/addquiz question2 | option1 | option2 | option3 | option4 | correct_number\n\n"
+                    "Add more Quiz /addquiz !"
                 )
                 return
 
@@ -470,7 +449,15 @@ Use /help to see all available commands! 🎮"""
             if "|" in message_text:
                 parts = message_text.split("|")
                 if len(parts) != 6:
-                    await update.message.reply_text("❌ Invalid format for single question")
+                    await update.message.reply_text(
+                        "❌ Please provide questions in the correct format.\n\n"
+                        "For single question:\n"
+                        "/addquiz question | option1 | option2 | option3 | option4 | correct_number\n\n"
+                        "For multiple questions (using the | format):\n"
+                        "/addquiz question1 | option1 | option2 | option3 | option4 | correct_number\n"
+                        "/addquiz question2 | option1 | option2 | option3 | option4 | correct_number\n\n"
+                        "Add more Quiz /addquiz !"
+                    )
                     return
 
                 questions_data.append({
@@ -478,48 +465,16 @@ Use /help to see all available commands! 🎮"""
                     'options': [p.strip() for p in parts[1:5]],
                     'correct_answer': int(parts[5].strip()) - 1
                 })
-            else:
-                # Multiple questions format
-                current_question = None
-                current_options = []
-
-                for line in message_text.split('\n'):
-                    line = line.strip()
-                    if not line:
-                        continue
-
-                    if line.startswith('Q:'):
-                        # Save previous question if exists
-                        if current_question is not None and len(current_options) == 4:
-                            questions_data.append({
-                                'question': current_question,
-                                'options': current_options,
-                                'correct_answer': None  # Will be set when we find 'A:'
-                            })
-                        current_question = line[2:].strip()
-                        current_options = []
-                    elif line.startswith(('1.', '2.', '3.', '4.')):
-                        if current_question is not None:
-                            current_options.append(line[2:].strip())
-                    elif line.startswith('A:'):
-                        if current_question is not None and len(current_options) == 4:
-                            try:
-                                correct_answer = int(line[2:].strip()) - 1
-                                if 0 <= correct_answer < 4:
-                                    questions_data.append({
-                                        'question': current_question,
-                                        'options': current_options,
-                                        'correct_answer': correct_answer
-                                    })
-                            except ValueError:
-                                pass
-                        current_question = None
-                        current_options = []
 
             if not questions_data:
                 await update.message.reply_text(
-                    "❌ No valid questions found in the input.\n"
-                    "Please check the format and try again."
+                    "❌ Please provide questions in the correct format.\n\n"
+                    "For single question:\n"
+                    "/addquiz question | option1 | option2 | option3 | option4 | correct_number\n\n"
+                    "For multiple questions (using the | format):\n"
+                    "/addquiz question1 | option1 | option2 | option3 | option4 | correct_number\n"
+                    "/addquiz question2 | option1 | option2 | option3 | option4 | correct_number\n\n"
+                    "Add more Quiz /addquiz !"
                 )
                 return
 
@@ -715,14 +670,14 @@ Use /help to see all available commands! 🎮"""
 ════════════════
 🚀 𝗥𝗲𝘀𝘁𝗿𝗶𝗰𝘁𝗲𝗱 𝗔𝗰𝗰𝗲𝘀𝘀
 🔹 This command is exclusively available to the Developer & His Wife to maintain quiz integrity & security.
-
+            
 📌 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 & ଇ𝗻𝗾𝘂𝗶𝗿𝗶𝗲𝘀
 📩 Contact: @CV_Owner & His Wifu ❤️
 💰 Paid Promotions: Up to 25K GC
 📝 Contribute: Share your quiz ideas
 ⚠️ Report: Issues & bugs
 💡 Suggest: Improvements & enhancements
-
+            
 ✅ Thank you for your cooperation!
 ════════════════"""
         await update.message.reply_text(message)
