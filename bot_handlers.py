@@ -20,18 +20,22 @@ class TelegramQuizBot:
     async def initialize(self, token: str):
         """Initialize and start the bot"""
         try:
+            logger.info("Starting bot initialization...")
+
             # Build application
             self.application = (
                 Application.builder()
                 .token(token)
                 .build()
             )
+            logger.info("Application built successfully")
 
             # Add handlers
             self.application.add_handler(CommandHandler("start", self.start))
             self.application.add_handler(CommandHandler("help", self.help))
             self.application.add_handler(CommandHandler("score", self.score))
             self.application.add_handler(CallbackQueryHandler(self.handle_answer, pattern="^quiz:"))
+            logger.info("Command handlers registered")
 
             # Schedule quiz every 20 minutes (1200 seconds)
             self.application.job_queue.run_repeating(
@@ -41,11 +45,16 @@ class TelegramQuizBot:
             )
             logger.info("Quiz scheduler configured successfully")
 
-            # Start polling
+            # Initialize and start polling
             await self.application.initialize()
             await self.application.start()
-            logger.info("Bot initialized successfully")
-            await self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+            logger.info("Bot started successfully")
+
+            # Start polling in non-blocking mode
+            await self.application.updater.start_polling()
+            logger.info("Bot polling started")
+
+            return self
 
         except Exception as e:
             logger.error(f"Failed to initialize bot: {e}")
@@ -53,11 +62,13 @@ class TelegramQuizBot:
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /start command"""
-        chat_id = update.effective_chat.id
-        self.quiz_manager.add_active_chat(chat_id)
-        logger.info(f"New chat started: {chat_id}")
+        try:
+            chat_id = update.effective_chat.id
+            logger.info(f"Received /start command in chat {chat_id}")
 
-        welcome_message = """
+            self.quiz_manager.add_active_chat(chat_id)
+
+            welcome_message = """
 🎯 Welcome to QuizBot! 
 
 I'll be your quiz master, delivering exciting questions every 20 minutes.
@@ -69,18 +80,31 @@ Commands:
 /score - Check your score
 
 Let the quiz begin! 🎉
-        """
-        await update.message.reply_text(welcome_message)
+            """
+            await update.message.reply_text(welcome_message)
+            logger.info(f"Sent welcome message to chat {chat_id}")
+
+            # Send first quiz immediately after start
+            await self.send_quiz(chat_id, context)
+
+        except Exception as e:
+            logger.error(f"Error in start command: {e}")
+            await update.message.reply_text("Sorry, there was an error processing your command. Please try again.")
 
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /help command"""
-        help_text = """
+        try:
+            help_text = """
 Available commands:
 /start - Start the bot and enable quizzes
 /help - Show this help message
 /score - Check your score
-        """
-        await update.message.reply_text(help_text)
+            """
+            await update.message.reply_text(help_text)
+            logger.info(f"Sent help message to chat {update.effective_chat.id}")
+        except Exception as e:
+            logger.error(f"Error in help command: {e}")
+            await update.message.reply_text("Sorry, there was an error showing the help message.")
 
     async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a quiz to a specific chat"""

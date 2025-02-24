@@ -4,7 +4,6 @@ import asyncio
 from flask import Flask
 from app import app, init_bot
 import threading
-import signal
 
 # Configure logging
 logging.basicConfig(
@@ -12,15 +11,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-# Flag to control the application lifecycle
-is_running = True
-
-def signal_handler(signum, frame):
-    """Handle shutdown signals"""
-    global is_running
-    logger.info(f"Received signal {signum}")
-    is_running = False
 
 def run_flask():
     """Run Flask in a separate thread"""
@@ -30,28 +20,40 @@ def run_flask():
         logger.error(f"Failed to start Flask: {e}")
         raise
 
-if __name__ == "__main__":
+async def main():
+    """Main async function to run both Flask and bot"""
     try:
-        # Set up signal handlers
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-
-        # Verify Telegram token
-        if not os.environ.get("TELEGRAM_TOKEN"):
-            raise ValueError("TELEGRAM_TOKEN environment variable is required")
-
-        # Start Flask in a background thread
+        # Start Flask in a separate thread
         flask_thread = threading.Thread(target=run_flask)
         flask_thread.daemon = True
         flask_thread.start()
         logger.info("Flask admin interface started in background thread")
 
-        # Run Telegram bot in the main thread
-        logger.info("Starting Telegram bot in main thread...")
-        asyncio.run(init_bot())
+        # Initialize and run bot in main thread
+        logger.info("Starting Telegram bot...")
+        bot = await init_bot()
+        logger.info("Bot initialization completed")
 
+        # Keep the main thread running
+        while True:
+            await asyncio.sleep(1)
+
+    except KeyboardInterrupt:
+        logger.info("Received shutdown signal")
+    except Exception as e:
+        logger.error(f"Application error: {e}")
+        raise
+
+if __name__ == "__main__":
+    try:
+        # Verify Telegram token
+        if not os.environ.get("TELEGRAM_TOKEN"):
+            raise ValueError("TELEGRAM_TOKEN environment variable is required")
+
+        # Run the async main function
+        asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Application shutdown requested")
     except Exception as e:
-        logger.error(f"Application error: {e}")
+        logger.error(f"Startup error: {e}")
         raise
