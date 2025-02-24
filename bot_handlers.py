@@ -260,13 +260,18 @@ class TelegramQuizBot:
 
         welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
 
-        🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
-        ➜ Auto Quizzes – Fresh quiz every 20 mins!
-        ➜ Leaderboard – Track scores & compete!
-        ➜ Categories – GK, CA, History & more! /category
-        ➜ Instant Results – Answers in real-time!
+🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
+➜ Auto Quizzes – Fresh quiz every 20 mins!
+➜ Leaderboard – Track scores & compete!
+➜ Categories – GK, CA, History & more! /category
+➜ Instant Results – Answers in real-time!
 
-        🔥 Add me as an admin & let's make learning fun!"""
+📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
+/start – Begin your journey
+/help – View commands
+/category – View topics
+
+🔥 Add me to your groups for quiz fun!"""
 
         try:
             await context.bot.send_message(
@@ -275,8 +280,17 @@ class TelegramQuizBot:
                 reply_markup=reply_markup,
                 parse_mode=ParseMode.MARKDOWN
             )
-            # Send first quiz after welcome
-            await self.send_quiz(chat_id, context)
+
+            # If it's a group, check admin status and handle accordingly
+            chat = await context.bot.get_chat(chat_id)
+            if chat.type in ["group", "supergroup"]:
+                is_admin = await self.check_admin_status(chat_id, context)
+                if is_admin:
+                    await self.send_quiz(chat_id, context)
+                else:
+                    await self.send_admin_reminder(chat_id, context)
+
+            logger.info(f"Sent welcome message to chat {chat_id}")
         except Exception as e:
             logger.error(f"Error sending welcome message: {e}")
 
