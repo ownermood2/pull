@@ -467,7 +467,6 @@ class TelegramQuizBot:
             await update.message.reply_text("Error showing categories.")
 
 
-
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show user's personal stats"""
         try:
@@ -831,14 +830,7 @@ Use /help to see all available commands! 🎮"""
                 poll_data = context.bot_data.get(f"poll_{poll_id}")
 
                 if not poll_data:
-                    await update.message.reply_text(
-                        """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗙𝗼𝘂𝗻𝗱
-════════════════
-Cannot find this quiz in the database.
-Try using /editquiz to view all quizzes.
-════════════════""",
-                        parse_mode=ParseMode.MARKDOWN
-                    )
+                    await self._handle_quiz_not_found(update, context)
                     return
 
                 # Find the quiz in questions list
@@ -850,13 +842,7 @@ Try using /editquiz to view all quizzes.
                         break
 
                 if found_idx == -1:
-                    await update.message.reply_text(
-                        """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗙𝗼𝘂𝗻𝗱
-════════════════
-This quiz no longer exists in the database.
-════════════════""",
-                        parse_mode=ParseMode.MARKDOWN
-                    )
+                    await self._handle_quiz_not_found(update, context)
                     return
 
                 # Show the quiz details
@@ -1161,14 +1147,7 @@ Please try again later.
                 poll_data = context.bot_data.get(f"poll_{poll_id}")
 
                 if not poll_data:
-                    await update.message.reply_text(
-                        """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗙𝗼𝘂𝗻𝗱
-════════════════
-Cannot find this quiz in the database.
-Try using /editquiz to view all quizzes.
-════════════════""",
-                        parse_mode=ParseMode.MARKDOWN
-                    )
+                    await self._handle_quiz_not_found(update, context)
                     return
 
                 # Find the quiz in questions list
@@ -1180,13 +1159,7 @@ Try using /editquiz to view all quizzes.
                         break
 
                 if found_idx == -1:
-                    await update.message.reply_text(
-                        """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗙𝗼𝘂𝗻𝗱
-════════════════
-This quiz no longer exists in the database.
-════════════════""",
-                        parse_mode=ParseMode.MARKDOWN
-                    )
+                    await self._handle_quiz_not_found(update, context)
                     return
 
                 # Show confirmation message
@@ -1497,6 +1470,32 @@ Use /help to see all commands."""
         except Exception as e:
             logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
             await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
+
+    async def _handle_quiz_not_found(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle cases where quiz data is not found"""
+        await update.message.reply_text(
+            """❌ 𝗤𝘂𝗶𝘇 𝗡𝗼𝘁 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲
+════════════════
+This quiz message is too old or no longer exists.
+Please use /editquiz to view all available quizzes.
+════════════════""",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.warning(f"Quiz not found in reply-to message from user {update.message.from_user.id}")
+
+    async def _handle_invalid_quiz_reply(self, update: Update, context: ContextTypes.DEFAULT_TYPE, command: str) -> None:
+        """Handle invalid quiz reply messages"""
+        await update.message.reply_text(
+            f"""❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗥𝗲𝗽𝗹𝘆
+════════════════
+Please reply to a quiz message or use:
+/{command} [quiz_number]
+
+ℹ️ Use /editquiz to view all quizzes
+════════════════""",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        logger.warning(f"Invalid quiz reply for {command} from user {update.message.from_user.id}")
 
 async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""
