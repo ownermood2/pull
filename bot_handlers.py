@@ -758,7 +758,7 @@ Use /help to see all available commands! 🎮"""
 
             # Calculate slice indices
             start_idx = (page - 1) * per_page
-            end_idx = min(start_idx + per_page, total_questions)
+            end_idx = min(start_idx + per_page, totalquestions)
 
             # Format header
             questions_text = f"""📝 𝗤𝘂𝗶𝘇 𝗘𝗱𝗶𝘁𝗼𝗿 𝗣𝗮𝗻𝗲𝗹

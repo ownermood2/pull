@@ -63,24 +63,30 @@ class QuizManager:
             logger.error(f"Error loading data: {e}")
             raise
 
-    def save_data(self):
+    def save_data(self, force=False):
         """Save data with throttling to prevent excessive writes"""
         current_time = datetime.now()
-        if current_time - self._last_save < self._save_interval:
+        if not force and current_time - self._last_save < self._save_interval:
             return
 
         try:
+            # Save questions file with proper JSON formatting
             with open(self.questions_file, 'w') as f:
-                json.dump(self.questions, f)
+                json.dump(self.questions, f, indent=2)
+                logger.info(f"Saved {len(self.questions)} questions to file")
+
+            # Save other data files
             with open(self.scores_file, 'w') as f:
-                json.dump(self.scores, f)
+                json.dump(self.scores, f, indent=2)
             with open(self.active_chats_file, 'w') as f:
-                json.dump(self.active_chats, f)
+                json.dump(self.active_chats, f, indent=2)
             with open(self.stats_file, 'w') as f:
-                json.dump(self.stats, f)
+                json.dump(self.stats, f, indent=2)
+
             self._last_save = current_time
+            logger.info(f"All data saved successfully. Questions count: {len(self.questions)}")
         except Exception as e:
-            logger.error(f"Error saving data: {e}")
+            logger.error(f"Error saving data: {str(e)}\n{traceback.format_exc()}")
             raise
 
     def _init_user_stats(self, user_id: str) -> None:
@@ -423,17 +429,7 @@ class QuizManager:
         self.save_data()
 
     def add_questions(self, questions_data: List[Dict]) -> Dict:
-        """Add multiple questions with validation and duplicate detection
-        Args:
-            questions_data: List of question dictionaries with format:
-                {
-                    'question': str,
-                    'options': List[str],
-                    'correct_answer': int
-                }
-        Returns:
-            Dict with stats about added/rejected questions
-        """
+        """Add multiple questions with validation and duplicate detection"""
         stats = {
             'added': 0,
             'rejected': {
@@ -448,13 +444,17 @@ class QuizManager:
             stats['errors'].append("Maximum 500 questions allowed at once")
             return stats
 
-        # Create a set of existing questions for duplicate checking
-        existing_questions = {q['question'].lower().strip() for q in self.questions}
+        logger.info(f"Starting to add {len(questions_data)} questions. Current count: {len(self.questions)}")
 
+        # Debug: Log existing questions
+        logger.debug(f"Existing questions before adding: {json.dumps(self.questions, indent=2)}")
+
+        added_questions = []
         for question_data in questions_data:
             try:
                 # Basic format validation
                 if not all(key in question_data for key in ['question', 'options', 'correct_answer']):
+                    logger.warning(f"Invalid format for question: {question_data}")
                     stats['rejected']['invalid_format'] += 1
                     stats['errors'].append(f"Invalid format for question: {question_data.get('question', 'Unknown')}")
                     continue
@@ -465,43 +465,58 @@ class QuizManager:
 
                 # Validate question text
                 if not question or len(question) < 5:
+                    logger.warning(f"Question text too short: {question}")
                     stats['rejected']['invalid_format'] += 1
                     stats['errors'].append(f"Question text too short: {question}")
                     continue
 
-                # Check for duplicates
-                if question.lower() in existing_questions:
-                    stats['rejected']['duplicates'] += 1
-                    stats['errors'].append(f"Duplicate question: {question}")
-                    continue
+                # Debug: Log each question being processed
+                logger.debug(f"Processing question: {question}")
 
                 # Validate options
                 if len(options) != 4 or not all(opt for opt in options):
+                    logger.warning(f"Invalid options for question: {question}")
                     stats['rejected']['invalid_options'] += 1
                     stats['errors'].append(f"Invalid options for question: {question}")
                     continue
 
                 # Validate correct answer index
                 if not isinstance(correct_answer, int) or not (0 <= correct_answer < 4):
+                    logger.warning(f"Invalid correct answer index for question: {question}")
                     stats['rejected']['invalid_format'] += 1
                     stats['errors'].append(f"Invalid correct answer index for question: {question}")
                     continue
 
                 # Add valid question
-                self.questions.append({
+                question_obj = {
                     'question': question,
                     'options': options,
                     'correct_answer': correct_answer
-                })
-                existing_questions.add(question.lower())
+                }
+                added_questions.append(question_obj)
                 stats['added'] += 1
+                logger.info(f"Added question: {question}")
 
             except Exception as e:
-                logger.error(f"Error processing question: {str(e)}")
+                logger.error(f"Error processing question: {str(e)}\n{traceback.format_exc()}")
                 stats['errors'].append(f"Unexpected error: {str(e)}")
 
         if stats['added'] > 0:
-            self.save_data()
+            # Update questions list with new questions
+            self.questions.extend(added_questions)
+            # Force save immediately after adding questions
+            self.save_data(force=True)
+
+            # Debug: Verify saved questions by reading the file
+            try:
+                with open(self.questions_file, 'r') as f:
+                    saved_questions = json.load(f)
+                logger.info(f"Verified saved questions count: {len(saved_questions)}")
+                logger.debug(f"Saved questions content: {json.dumps(saved_questions, indent=2)}")
+            except Exception as e:
+                logger.error(f"Error verifying saved questions: {e}")
+
+            logger.info(f"Added {stats['added']} questions. New total: {len(self.questions)}")
 
         return stats
 
