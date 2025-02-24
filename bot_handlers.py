@@ -88,7 +88,8 @@ class TelegramQuizBot:
             except Exception as e:
                 logger.warning(f"Failed to delete previous quiz: {e}")
 
-            question = self.quiz_manager.get_random_question()
+            # Get a random question for this specific chat
+            question = self.quiz_manager.get_random_question(chat_id)
             if not question:
                 await context.bot.send_message(chat_id=chat_id, text="No questions available.")
                 return
@@ -720,7 +721,7 @@ Use /help to see all available commands! 🎮"""
 👥 Active Groups Today: {active_groups_today}  
 👤 Active Users Today: {active_users_today}  
 
-⚡ 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗲𝗿
+⚡ 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗲𝗥
 📅 QuizzesSent Today: {today_quizzes}  
 📆 This Week: {week_quizzes}  
 📊 This Month: {month_quizzes}  
@@ -755,8 +756,7 @@ Use /help to see all available commands! 🎮"""
             total_pages = max(1, (total_questions + per_page - 1) // per_page)
             page = min(page, total_pages)
 
-            # Calculate slice indices
-            start_idx = (page - 1) * per_page
+            # Calculate slice indicesstart_idx = (page - 1) * per_page
             end_idx = min(start_idx + per_page, total_questions)
 
             # Format header

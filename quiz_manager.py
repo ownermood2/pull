@@ -6,6 +6,7 @@ import traceback
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
 from functools import lru_cache
+from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,8 @@ class QuizManager:
         self._cached_leaderboard = None
         self._leaderboard_cache_time = None
         self._cache_duration = timedelta(minutes=5)
+        # Track recently asked questions per chat
+        self.recent_questions = defaultdict(lambda: deque(maxlen=50))  # Store last 50 questions per chat
 
     def _initialize_files(self):
         """Initialize data files with proper error handling"""
@@ -309,11 +312,33 @@ class QuizManager:
             raise
 
     @lru_cache(maxsize=1)
-    def get_random_question(self) -> Optional[Dict[str, Any]]:
-        """Get a random question with caching"""
+    def get_random_question(self, chat_id: int = None) -> Optional[Dict[str, Any]]:
+        """Get a random question avoiding recent ones"""
         if not self.questions:
             return None
-        return random.choice(self.questions)
+
+        # If no chat_id provided or no recent questions for this chat, return completely random
+        if not chat_id or not self.recent_questions[chat_id]:
+            question = random.choice(self.questions)
+            if chat_id:
+                self.recent_questions[chat_id].append(question['question'])
+            return question
+
+        # Get questions that haven't been asked recently in this chat
+        available_questions = [
+            q for q in self.questions
+            if q['question'] not in self.recent_questions[chat_id]
+        ]
+
+        # If all questions have been asked recently, clear history and use all questions
+        if not available_questions:
+            self.recent_questions[chat_id].clear()
+            available_questions = self.questions
+
+        # Select a random question from available ones
+        question = random.choice(available_questions)
+        self.recent_questions[chat_id].append(question['question'])
+        return question
 
     def get_leaderboard(self) -> List[Dict]:
         """Get global leaderboard with caching"""
@@ -511,3 +536,13 @@ class QuizManager:
 
     def get_active_chats(self) -> List[int]:
         return self.active_chats
+
+    def cleanup_old_questions(self):
+        """Cleanup old question history periodically"""
+        current_time = datetime.now()
+        cutoff_time = current_time - timedelta(hours=24)
+
+        for chat_id in list(self.recent_questions.keys()):
+            # Remove chat histories older than 24 hours
+            if len(self.recent_questions[chat_id]) == 0:
+                del self.recent_questions[chat_id]
