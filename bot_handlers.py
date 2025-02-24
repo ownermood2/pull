@@ -26,11 +26,19 @@ class TelegramQuizBot:
                 .build()
             )
 
-            # Add handlers
+            # Add handlers for all commands
             self.application.add_handler(CommandHandler("start", self.start))
             self.application.add_handler(CommandHandler("help", self.help))
-            self.application.add_handler(CommandHandler("score", self.score))
-            self.application.add_handler(CommandHandler("category", self.category)) # Added category handler
+            self.application.add_handler(CommandHandler("quiz", self.quiz_command))
+            self.application.add_handler(CommandHandler("category", self.category))
+            self.application.add_handler(CommandHandler("mystats", self.mystats))
+            self.application.add_handler(CommandHandler("groupstats", self.groupstats))
+            self.application.add_handler(CommandHandler("leaderboard", self.leaderboard))
+            self.application.add_handler(CommandHandler("allreload", self.allreload))
+            self.application.add_handler(CommandHandler("addquiz", self.addquiz))
+            self.application.add_handler(CommandHandler("globalstats", self.globalstats))
+            self.application.add_handler(CommandHandler("editquiz", self.editquiz))
+            self.application.add_handler(CommandHandler("broadcast", self.broadcast))
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
 
             # Schedule quiz every 20 minutes (1200 seconds)
@@ -114,6 +122,33 @@ class TelegramQuizBot:
             logger.error(f"Error in help command: {e}")
             await update.message.reply_text("Error showing help.")
 
+    async def category(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle the /category command"""
+        try:
+            category_text = """📚 𝗩𝗜𝗘𝗪 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦  
+══════════════════  
+📑 𝗔𝗩𝗔𝗜𝗟𝗔𝗕𝗟𝗘 𝗤𝗨𝗜𝗭 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦  
+• General Knowledge 🌍
+• Current Affairs 📰
+• Static GK 📚
+• Science & Technology 🔬
+• History 📜
+• Geography 🗺
+• Economics 💰
+• Political Science 🏛
+• Constitution 📖
+• Constitution & Law ⚖
+• Arts & Literature 🎭
+• Sports & Games 🎮  
+
+🎯 Stay tuned! More quizzes coming soon!  
+🛠 Need help? Use /help for more commands!"""
+
+            await update.message.reply_text(category_text)
+        except Exception as e:
+            logger.error(f"Error showing categories: {e}")
+            await update.message.reply_text("Error showing categories.")
+
     async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
@@ -140,8 +175,6 @@ class TelegramQuizBot:
         try:
             answer = update.poll_answer
             if answer.user.id and answer.option_ids:
-                # For native quizzes, Telegram handles showing correct/wrong answer
-                # We just need to update the score if correct
                 poll = context.bot_data.get(answer.poll_id)
                 if poll and poll.correct_option_id in answer.option_ids:
                     self.quiz_manager.increment_score(answer.user.id)
@@ -149,15 +182,100 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error handling answer: {e}")
 
-    async def score(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle the /score command"""
+    async def quiz_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle the /quiz command"""
+        try:
+            await self.send_quiz(update.effective_chat.id, context)
+        except Exception as e:
+            logger.error(f"Error in quiz command: {e}")
+            await update.message.reply_text("Error starting quiz.")
+
+    async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Show user's personal stats"""
         try:
             user_id = update.message.from_user.id
             score = self.quiz_manager.get_score(user_id)
-            await update.message.reply_text(f"Your score: {score}")
+            await update.message.reply_text(f"Your total score: {score} points 🏆")
         except Exception as e:
-            logger.error(f"Error getting score: {e}")
-            await update.message.reply_text("Error getting score")
+            logger.error(f"Error getting user stats: {e}")
+            await update.message.reply_text("Error retrieving your stats.")
+
+    async def groupstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Show group performance stats"""
+        try:
+            chat_id = update.effective_chat.id
+            await update.message.reply_text("Group statistics feature coming soon! 📊")
+        except Exception as e:
+            logger.error(f"Error getting group stats: {e}")
+            await update.message.reply_text("Error retrieving group stats.")
+
+    async def leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Show global leaderboard"""
+        try:
+            await update.message.reply_text("Leaderboard feature coming soon! 🏆")
+        except Exception as e:
+            logger.error(f"Error showing leaderboard: {e}")
+            await update.message.reply_text("Error retrieving leaderboard.")
+
+    async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Full bot restart - Developer only"""
+        try:
+            if await self.is_developer(update.message.from_user.id):
+                await update.message.reply_text("Bot restart initiated... ⚡")
+            else:
+                await update.message.reply_text("This command is for developers only.")
+        except Exception as e:
+            logger.error(f"Error in allreload: {e}")
+            await update.message.reply_text("Error restarting bot.")
+
+    async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Add new quiz - Developer only"""
+        try:
+            if await self.is_developer(update.message.from_user.id):
+                await update.message.reply_text("Quiz addition feature coming soon! 📝")
+            else:
+                await update.message.reply_text("This command is for developers only.")
+        except Exception as e:
+            logger.error(f"Error in addquiz: {e}")
+            await update.message.reply_text("Error adding quiz.")
+
+    async def globalstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Show bot statistics - Developer only"""
+        try:
+            if await self.is_developer(update.message.from_user.id):
+                await update.message.reply_text("Global statistics feature coming soon! 📊")
+            else:
+                await update.message.reply_text("This command is for developers only.")
+        except Exception as e:
+            logger.error(f"Error in globalstats: {e}")
+            await update.message.reply_text("Error retrieving global stats.")
+
+    async def editquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Edit existing quiz - Developer only"""
+        try:
+            if await self.is_developer(update.message.from_user.id):
+                await update.message.reply_text("Quiz editing feature coming soon! ✏️")
+            else:
+                await update.message.reply_text("This command is for developers only.")
+        except Exception as e:
+            logger.error(f"Error in editquiz: {e}")
+            await update.message.reply_text("Error editing quiz.")
+
+    async def broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send announcements - Developer only"""
+        try:
+            if await self.is_developer(update.message.from_user.id):
+                await update.message.reply_text("Broadcast feature coming soon! 📢")
+            else:
+                await update.message.reply_text("This command is for developers only.")
+        except Exception as e:
+            logger.error(f"Error in broadcast: {e}")
+            await update.message.reply_text("Error sending broadcast.")
+
+    async def is_developer(self, user_id: int) -> bool:
+        """Check if user is a developer"""
+        # Temporary implementation - should be replaced with proper check
+        return True
 
     async def scheduled_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send scheduled quizzes to all active chats"""
@@ -167,35 +285,6 @@ class TelegramQuizBot:
                 await self.send_quiz(chat_id, context)
         except Exception as e:
             logger.error(f"Error in scheduled quiz: {e}")
-
-    async def category(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle the /category command"""
-        try:
-            category_text = """📚 𝗩𝗜𝗘𝗪 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦  
-══════════════════  
-📑 𝗔𝗩𝗔𝗜𝗟𝗔𝗕𝗟𝗘 𝗤𝗨𝗜𝗭 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦  
-• General Knowledge 🌍
-• Current Affairs 📰
-• Static GK 📚
-• Science & Technology 🔬
-• History 📜
-• Geography 🗺
-• Economics 💰
-• Political Science 🏛
-• Constitution 📖
-• Constitution & Law ⚖
-• Arts & Literature 🎭
-• Sports & Games 🎮  
-
-🎯 Stay tuned! More quizzes coming soon!  
-🛠 Need help? Use /help for more commands!"""
-
-            await update.message.reply_text(category_text)
-        except Exception as e:
-            logger.error(f"Error getting categories: {e}")
-            await update.message.reply_text("Error showing categories.")
-
-
 
 async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""
