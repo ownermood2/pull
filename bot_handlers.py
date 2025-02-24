@@ -1,7 +1,8 @@
 import os
 import logging
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
+from collections import defaultdict
 from telegram import Update, Poll
 from telegram.ext import (
     Application,
@@ -17,6 +18,8 @@ class TelegramQuizBot:
         """Initialize the quiz bot"""
         self.quiz_manager = quiz_manager
         self.application = None
+        self.command_cooldowns = defaultdict(lambda: defaultdict(int))
+        self.COOLDOWN_PERIOD = 3  # seconds between commands
 
     async def initialize(self, token: str):
         """Initialize and start the bot"""
@@ -50,6 +53,13 @@ class TelegramQuizBot:
                 first=10
             )
 
+            # Schedule cleanup of old poll data
+            self.application.job_queue.run_repeating(
+                self.cleanup_old_polls,
+                interval=3600,  # Every hour
+                first=300  # Start after 5 minutes
+            )
+
             # Initialize and start polling
             await self.application.initialize()
             await self.application.start()
@@ -59,6 +69,129 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Failed to initialize bot: {e}")
             raise
+
+    async def check_cooldown(self, user_id: int, command: str) -> bool:
+        """Check if command is on cooldown for user"""
+        current_time = datetime.now().timestamp()
+        last_used = self.command_cooldowns[user_id][command]
+        if current_time - last_used < self.COOLDOWN_PERIOD:
+            return False
+        self.command_cooldowns[user_id][command] = current_time
+        return True
+
+    async def cleanup_old_polls(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Remove old poll data to prevent memory leaks"""
+        try:
+            current_time = datetime.now()
+            keys_to_remove = []
+
+            for key, poll_data in context.bot_data.items():
+                if not key.startswith('poll_'):
+                    continue
+
+                # Remove polls older than 1 hour
+                if 'timestamp' in poll_data:
+                    poll_time = datetime.fromisoformat(poll_data['timestamp'])
+                    if (current_time - poll_time) > timedelta(hours=1):
+                        keys_to_remove.append(key)
+
+            for key in keys_to_remove:
+                del context.bot_data[key]
+
+            logger.info(f"Cleaned up {len(keys_to_remove)} old poll entries")
+
+        except Exception as e:
+            logger.error(f"Error cleaning up old polls: {e}")
+
+    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send a quiz to a specific chat using native Telegram quiz format"""
+        try:
+            question = self.quiz_manager.get_random_question()
+            if not question:
+                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
+                return
+
+            # Send the poll
+            message = await context.bot.send_poll(
+                chat_id=chat_id,
+                question=question['question'],
+                options=question['options'],
+                type=Poll.QUIZ,
+                correct_option_id=question['correct_answer'],
+                is_anonymous=False
+            )
+
+            if message and message.poll:
+                poll_data = {
+                    'chat_id': chat_id,
+                    'correct_option_id': question['correct_answer'],
+                    'user_answers': {},
+                    'poll_id': message.poll.id,
+                    'question': question['question'],
+                    'timestamp': datetime.now().isoformat()
+                }
+                # Store using proper poll ID key
+                context.bot_data[f"poll_{message.poll.id}"] = poll_data
+                logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
+
+        except Exception as e:
+            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
+            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
+
+    async def handle_answer(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle quiz answers"""
+        try:
+            answer = update.poll_answer
+            if not answer or not answer.poll_id or not answer.user:
+                logger.warning("Received invalid poll answer")
+                return
+
+            logger.info(f"Received answer from user {answer.user.id} for poll {answer.poll_id}")
+
+            # Get quiz data from context using proper key
+            poll_data = context.bot_data.get(f"poll_{answer.poll_id}")
+            if not poll_data:
+                logger.warning(f"No poll data found for poll_id {answer.poll_id}")
+                return
+
+            # Check if this is a correct answer
+            is_correct = poll_data['correct_option_id'] in answer.option_ids
+            chat_id = poll_data['chat_id']
+
+            # Record the answer in poll_data
+            poll_data['user_answers'][answer.user.id] = {
+                'option_ids': answer.option_ids,
+                'is_correct': is_correct,
+                'timestamp': datetime.now().isoformat()
+            }
+
+            # Record both global and group-specific score
+            if is_correct:
+                self.quiz_manager.increment_score(answer.user.id)
+                logger.info(f"Recorded correct answer for user {answer.user.id}")
+
+            # Record group attempt
+            self.quiz_manager.record_group_attempt(
+                user_id=answer.user.id,
+                chat_id=chat_id,
+                is_correct=is_correct
+            )
+            logger.info(f"Recorded group attempt for user {answer.user.id} in chat {chat_id} (correct: {is_correct})")
+
+        except Exception as e:
+            logger.error(f"Error handling answer: {str(e)}\n{traceback.format_exc()}")
+
+    async def quiz_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle the /quiz command"""
+        try:
+            if not await self.check_cooldown(update.effective_user.id, "quiz"):
+                await update.message.reply_text("Please wait a few seconds before requesting another quiz.")
+                return
+
+            await self.send_quiz(update.effective_chat.id, context)
+        except Exception as e:
+            logger.error(f"Error in quiz command: {e}")
+            await update.message.reply_text("Error starting quiz.")
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /start command"""
@@ -151,90 +284,6 @@ class TelegramQuizBot:
             logger.error(f"Error showing categories: {e}")
             await update.message.reply_text("Error showing categories.")
 
-    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send a quiz to a specific chat using native Telegram quiz format"""
-        try:
-            question = self.quiz_manager.get_random_question()
-            if not question:
-                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
-                return
-
-            # Send the poll
-            message = await context.bot.send_poll(
-                chat_id=chat_id,
-                question=question['question'],
-                options=question['options'],
-                type=Poll.QUIZ,
-                correct_option_id=question['correct_answer'],
-                is_anonymous=False
-            )
-
-            # Store quiz data with chat_id in context
-            if message and message.poll:
-                poll_data = {
-                    'chat_id': chat_id,
-                    'correct_option_id': question['correct_answer'],
-                    'user_answers': {},
-                    'poll_id': message.poll.id,
-                    'question': question['question']
-                }
-                context.bot_data[f"poll_{message.poll.id}"] = poll_data
-                logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}, correct_option={question['correct_answer']}")
-
-        except Exception as e:
-            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
-            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
-
-    async def handle_answer(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle quiz answers from Telegram's native quiz"""
-        try:
-            answer = update.poll_answer
-            if not answer or not answer.poll_id or not answer.user:
-                logger.warning("Received invalid poll answer")
-                return
-
-            logger.info(f"Received answer from user {answer.user.id} for poll {answer.poll_id}")
-
-            # Get quiz data from context
-            poll_data = context.bot_data.get(f"poll_{answer.poll_id}")
-            if not poll_data:
-                logger.warning(f"No poll data found for poll_id {answer.poll_id}")
-                return
-
-            # Check if this is a correct answer
-            is_correct = poll_data['correct_option_id'] in answer.option_ids
-            chat_id = poll_data['chat_id']
-
-            # Record the answer in poll_data
-            poll_data['user_answers'][answer.user.id] = {
-                'option_ids': answer.option_ids,
-                'is_correct': is_correct,
-                'timestamp': datetime.now().isoformat()
-            }
-
-            # Record both global and group-specific score
-            if is_correct:
-                self.quiz_manager.increment_score(answer.user.id)
-                logger.info(f"Recorded correct answer for user {answer.user.id}")
-
-            # Record group attempt
-            self.quiz_manager.record_group_attempt(
-                user_id=answer.user.id,
-                chat_id=chat_id,
-                is_correct=is_correct
-            )
-            logger.info(f"Recorded group attempt for user {answer.user.id} in chat {chat_id} (correct: {is_correct})")
-
-        except Exception as e:
-            logger.error(f"Error handling answer: {str(e)}\n{traceback.format_exc()}")
-
-    async def quiz_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle the /quiz command"""
-        try:
-            await self.send_quiz(update.effective_chat.id, context)
-        except Exception as e:
-            logger.error(f"Error in quiz command: {e}")
-            await update.message.reply_text("Error starting quiz.")
 
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show user's personal stats"""
