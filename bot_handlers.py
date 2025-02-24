@@ -607,18 +607,42 @@ Use /help to see all available commands! 🎮"""
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Reload data
+            logger.info("Starting full bot reload...")
+            await update.message.reply_text("🔄 Reloading bot data...", parse_mode=ParseMode.MARKDOWN)
+
+            # Reload all data
             self.quiz_manager.load_data()
+            logger.info("Data reloaded successfully")
 
-            # Clear caches
-            self.quiz_manager.get_random_question.cache_clear()
-            self.quiz_manager.get_user_stats.cache_clear()
+            # Clear command cooldowns and history
+            self.command_cooldowns.clear()
+            self.command_history.clear()
+            logger.info("Cleared command history and cooldowns")
 
-            await update.message.reply_text("✅ Bot data reloaded successfully!\n\n• Questions reloaded\n• Stats refreshed\n• Caches cleared", parse_mode=ParseMode.MARKDOWN)
+            # Clear any cached data
+            if hasattr(self.quiz_manager, '_cached_leaderboard'):
+                self.quiz_manager._cached_leaderboard = None
+            if hasattr(self.quiz_manager, '_leaderboard_cache_time'):
+                self.quiz_manager._leaderboard_cache_time = None
+            logger.info("Cleared cached data")
+
+            await update.message.reply_text(
+                "✅ Bot successfully reloaded!\n\n"
+                "• Questions reloaded\n"
+                "• Stats refreshed\n"
+                "• Caches cleared\n"
+                "• Command history reset",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            logger.info("Bot reload completed successfully")
 
         except Exception as e:
-            logger.error(f"Error in allreload: {e}")
-            await update.message.reply_text("❌ Error restarting bot.")
+            error_msg = f"Error in allreload: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            await update.message.reply_text(
+                "❌ Error restarting bot. Details have been logged.",
+                parse_mode=ParseMode.MARKDOWN
+            )
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Add new quiz(zes) - Developer only"""

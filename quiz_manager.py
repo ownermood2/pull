@@ -119,11 +119,20 @@ class QuizManager:
                 logger.warning("Stats file empty or corrupted, initializing empty")
                 self.stats = {}
 
+            # Clear caches
+            self._cached_questions = None
+            self._cached_leaderboard = None
+            self._leaderboard_cache_time = None
+            self.recent_questions.clear()
+            self.last_question_time.clear()
+            self.available_questions.clear()
+
             # Force save to update cleaned questions
             self.save_data(force=True)
-            logger.info(f"Loaded and cleaned {len(self.questions)} questions")
+            logger.info(f"Successfully loaded and cleaned {len(self.questions)} questions")
+
         except Exception as e:
-            logger.error(f"Error loading data: {e}")
+            logger.error(f"Critical error loading data: {str(e)}\n{traceback.format_exc()}")
             raise
 
     def save_data(self, force=False):
