@@ -12,22 +12,30 @@ logger = logging.getLogger(__name__)
 class QuizManager:
     def __init__(self):
         """Initialize the quiz manager with proper data structures and caching"""
+        # Initialize file paths
         self.questions_file = "data/questions.json"
         self.scores_file = "data/scores.json"
         self.active_chats_file = "data/active_chats.json"
         self.stats_file = "data/user_stats.json"
-        self._initialize_files()
-        self.load_data()
-        self._last_save = datetime.now()
-        self._save_interval = timedelta(minutes=5)
+
+        # Initialize caching structures
         self._cached_questions = None
         self._cached_leaderboard = None
         self._leaderboard_cache_time = None
         self._cache_duration = timedelta(minutes=5)
-        # Track recently asked questions per chat
+
+        # Initialize tracking structures
         self.recent_questions = defaultdict(lambda: deque(maxlen=50))  # Store last 50 questions per chat
         self.last_question_time = defaultdict(dict)  # Track when each question was last asked in each chat
         self.available_questions = defaultdict(list)  # Track available questions per chat
+
+        # Initialize basic data
+        self._initialize_files()
+        self._last_save = datetime.now()
+        self._save_interval = timedelta(minutes=5)
+
+        # Load data after all structures are initialized
+        self.load_data()
 
     def _initialize_files(self):
         """Initialize data files with proper error handling"""
@@ -119,17 +127,22 @@ class QuizManager:
                 logger.warning("Stats file empty or corrupted, initializing empty")
                 self.stats = {}
 
-            # Clear caches
-            self._cached_questions = None
-            self._cached_leaderboard = None
-            self._leaderboard_cache_time = None
+            # Reset tracking structures
             self.recent_questions.clear()
             self.last_question_time.clear()
             self.available_questions.clear()
 
-            # Force save to update cleaned questions
+            # Clear caches
+            self._cached_questions = None
+            self._cached_leaderboard = None
+            self._leaderboard_cache_time = None
+
+            # Force save to ensure clean data
             self.save_data(force=True)
             logger.info(f"Successfully loaded and cleaned {len(self.questions)} questions")
+            logger.info(f"Active chats: {len(self.active_chats)}")
+            logger.info(f"Active users with stats: {len(self.stats)}")
+            logger.info(f"Users with scores: {len(self.scores)}")
 
         except Exception as e:
             logger.error(f"Critical error loading data: {str(e)}\n{traceback.format_exc()}")

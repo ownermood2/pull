@@ -610,37 +610,47 @@ Use /help to see all available commands! 🎮"""
             logger.info("Starting full bot reload...")
             await update.message.reply_text("🔄 Reloading bot data...", parse_mode=ParseMode.MARKDOWN)
 
-            # Reload all data
-            self.quiz_manager.load_data()
-            logger.info("Data reloaded successfully")
+            try:
+                # Reload all data
+                self.quiz_manager.load_data()
+                logger.info("Data reloaded successfully")
 
-            # Clear command cooldowns and history
-            self.command_cooldowns.clear()
-            self.command_history.clear()
-            logger.info("Cleared command history and cooldowns")
+                # Clear command cooldowns and history
+                self.command_cooldowns.clear()
+                self.command_history.clear()
+                logger.info("Cleared command history and cooldowns")
 
-            # Clear any cached data
-            if hasattr(self.quiz_manager, '_cached_leaderboard'):
-                self.quiz_manager._cached_leaderboard = None
-            if hasattr(self.quiz_manager, '_leaderboard_cache_time'):
-                self.quiz_manager._leaderboard_cache_time = None
-            logger.info("Cleared cached data")
+                # Clear any cached data
+                if hasattr(self.quiz_manager, '_cached_leaderboard'):
+                    self.quiz_manager._cached_leaderboard = None
+                if hasattr(self.quiz_manager, '_leaderboard_cache_time'):
+                    self.quiz_manager._leaderboard_cache_time = None
+                logger.info("Cleared cached data")
 
-            await update.message.reply_text(
-                "✅ Bot successfully reloaded!\n\n"
-                "• Questions reloaded\n"
-                "• Stats refreshed\n"
-                "• Caches cleared\n"
-                "• Command history reset",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            logger.info("Bot reload completed successfully")
+                await update.message.reply_text(
+                    "✅ Bot successfully reloaded!\n\n"
+                    "• Questions reloaded\n"
+                    "• Stats refreshed\n"
+                    "• Caches cleared\n"
+                    "• Command history reset",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.info("Bot reload completed successfully")
+
+            except Exception as e:
+                error_msg = f"Error during data reload: {str(e)}\n{traceback.format_exc()}"
+                logger.error(error_msg)
+                await update.message.reply_text(
+                    "❌ Error reloading bot data. Please check the logs.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return
 
         except Exception as e:
-            error_msg = f"Error in allreload: {str(e)}\n{traceback.format_exc()}"
+            error_msg = f"Error in allreload command: {str(e)}\n{traceback.format_exc()}"
             logger.error(error_msg)
             await update.message.reply_text(
-                "❌ Error restarting bot. Details have been logged.",
+                "❌ Error during bot reload. Please check the logs.",
                 parse_mode=ParseMode.MARKDOWN
             )
 
@@ -753,7 +763,7 @@ Use /help to see all available commands! 🎮"""
                 )
             )
 
-            # Calculate quizzes over time periods
+            # Calculate quizzes over timeperiods
             today_quizzes = sum(
                 stats['daily_activity'].get(current_date, {}).get('attempts', 0)
                 for stats in self.quiz_manager.stats.values()
