@@ -758,8 +758,8 @@ Use /help to see all available commands! 🎮"""
                 1 for chat_id in active_chats
                 if any(
                     stats.get('last_quiz_date') == current_date
-                                             for stats in self.quiz_manager.stats.values()
-                    if str(chat_id) in stats.get('groups{}, {})
+                    for stats in self.quiz_manager.stats.values()
+                    if str(chat_id) in stats.get('groups', {})
                 )
             )
 
