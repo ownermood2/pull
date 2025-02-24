@@ -116,18 +116,18 @@ class TelegramQuizBot:
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
-
+        
 🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
 ➜ Auto Quizzes – Fresh quiz every 20 mins!
 ➜ Leaderboard – Track scores & compete!
 ➜ Categories – GK, CA, History & more! /category
 ➜ Instant Results – Answers in real-time!
-
+        
 📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
 /start – Begin your journey
 /help – View commands
 /category – View topics
-
+        
 🔥 Add me as an admin & let's make learning fun!"""
 
         try:
@@ -157,7 +157,7 @@ class TelegramQuizBot:
             try:
                 await context.bot.delete_message(
                     chat_id=chat_id,
-                    message_id=last_command.split("_")[1]
+                    message_id=int(last_command.split("_")[1])
                 )
                 await update.message.reply_text("Last quiz rolled back successfully!")
             except Exception as e:
@@ -221,12 +221,12 @@ class TelegramQuizBot:
 /help – Available commands  
 /category – View Topics
 /quiz – Try a quiz demo  
-
+            
 📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗  
 /mystats - Your Performance 
 /groupstats – Your group performance   
 /leaderboard – See champions  
-
+            
 🛠️ 𝗨𝗧𝗜𝗟𝗜𝗧𝗜𝗘𝗦
 /rollback - Undo last command
 /cleanchat - Remove old messages"""
@@ -234,7 +234,7 @@ class TelegramQuizBot:
             # Add developer commands only for developers
             if is_dev:
                 help_text += """
-
+            
 🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
 /allreload – Full bot restart  
 /addquiz – Add new questions
@@ -284,6 +284,18 @@ class TelegramQuizBot:
     async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
+            # First, try to delete the last quiz if it exists
+            try:
+                chat_history = self.command_history.get(chat_id, [])
+                if chat_history:
+                    last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
+                    if last_quiz:
+                        msg_id = int(last_quiz.split("_")[1])
+                        await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                        logger.info(f"Deleted previous quiz message {msg_id} in chat {chat_id}")
+            except Exception as e:
+                logger.warning(f"Failed to delete previous quiz: {e}")
+
             question = self.quiz_manager.get_random_question()
             if not question:
                 await context.bot.send_message(chat_id=chat_id, text="No questions available.")
@@ -397,12 +409,12 @@ class TelegramQuizBot:
 /help – Available commands  
 /category – View Topics
 /quiz – Try a quiz demo  
-
+            
 📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗  
 /mystats - Your Performance 
 /groupstats – Your group performance   
 /leaderboard – See champions  
-
+            
 🛠️ 𝗨𝗧𝗜𝗟𝗜𝗧𝗜𝗘𝗦
 /rollback - Undo last command
 /cleanchat - Remove old messages"""
@@ -410,7 +422,7 @@ class TelegramQuizBot:
             # Add developer commands only for developers
             if is_dev:
                 help_text += """
-
+            
 🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
 /allreload – Full bot restart  
 /addquiz – Add new questions
@@ -739,7 +751,7 @@ Use /help to see all available commands! 🎮"""
 👤 Active Users Today: {active_users_today}  
             
 ⚡ 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗲𝗿
-📅 Quizzes Sent Today: {today_quizzes}  
+📅 QuizzesSent Today: {today_quizzes}  
 📆 This Week: {week_quizzes}  
 📊 This Month: {month_quizzes}  
 📌 All Time: {all_time_quizzes}  
@@ -852,12 +864,81 @@ Use /help to see all available commands! 🎮"""
 ════════════════"""
         await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
 
+    async def check_admin_status(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+        """Check if bot is admin in the chat"""
+        try:
+            bot_member = await context.bot.get_chat_member(chat_id, context.bot.id)
+            return bot_member.status in ['administrator', 'creator']
+        except Exception as e:
+            logger.error(f"Error checking admin status: {e}")
+            return False
+
+    async def send_admin_reminder(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send a professional reminder to make bot admin"""
+        reminder_message = """🔔 𝗔𝗱𝗺𝗶𝗻 𝗥𝗲𝗾𝘂𝗲𝘀𝘁
+════════════════
+📌 To enable all quiz features, please:
+1. Click Group Settings
+2. Select Administrators
+3. Add "IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII" as Admin
+
+🎯 𝗕𝗲𝗻𝗲𝗳𝗶𝘁𝘀
+• Automatic Quiz Delivery
+• Message Management
+• Enhanced Group Analytics
+• Leaderboard Updates
+
+✨ Upgrade your quiz experience now!
+════════════════"""
+
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=reminder_message,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            logger.info(f"Sent admin reminder to chat {chat_id}")
+        except Exception as e:
+            logger.error(f"Failed to send admin reminder: {e}")
+
     async def scheduled_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send scheduled quizzes to all active chats"""
         try:
             active_chats = self.quiz_manager.get_active_chats()
             for chat_id in active_chats:
-                await self.send_quiz(chat_id, context)
+                try:
+                    # Check if bot is admin
+                    is_admin = await self.check_admin_status(chat_id, context)
+
+                    if is_admin:
+                        # Clean old messages first
+                        try:
+                            messages_to_delete = []
+                            async for message in context.bot.get_chat_history(chat_id, limit=100):
+                                if (message.from_user.id == context.bot.id and 
+                                    (datetime.now() - message.date).total_seconds() > 3600):  # Delete messages older than 1 hour
+                                    messages_to_delete.append(message.message_id)
+
+                            for msg_id in messages_to_delete:
+                                try:
+                                    await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                                except Exception:
+                                    continue
+                        except Exception as e:
+                            logger.error(f"Error cleaning old messages in chat {chat_id}: {e}")
+
+                        # Send new quiz
+                        await self.send_quiz(chat_id, context)
+                        logger.info(f"Sent scheduled quiz to chat {chat_id}")
+                    else:
+                        # Send admin reminder
+                        await self.send_admin_reminder(chat_id, context)
+                        logger.info(f"Sent admin reminder to chat {chat_id}")
+
+                except Exception as e:
+                    logger.error(f"Error handling chat {chat_id}: {e}")
+                    continue
+
         except Exception as e:
             logger.error(f"Error in scheduled quiz: {e}")
 
