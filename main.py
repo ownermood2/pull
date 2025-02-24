@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 # Global variables for tracking
 last_restart = datetime.now()
 error_count = 0
-MAX_ERRORS = 10
-RESTART_INTERVAL = timedelta(hours=24)
+MAX_ERRORS = 5  # Reduced from 10 to be more proactive
+RESTART_INTERVAL = timedelta(hours=12)  # Reduced from 24 to 12 hours for more frequent refreshes
 
 def run_flask():
     """Run Flask in a separate thread"""
@@ -47,6 +47,24 @@ def signal_handler(signum, frame):
     """Handle termination signals"""
     logger.info(f"Received signal {signum}")
     raise SystemExit("Received termination signal")
+
+async def health_check():
+    """Perform regular health checks"""
+    while True:
+        try:
+            # Check memory usage
+            import psutil
+            process = psutil.Process(os.getpid())
+            memory_usage = process.memory_info().rss / 1024 / 1024  # MB
+
+            if memory_usage > 500:  # 500MB threshold
+                logger.warning(f"High memory usage detected: {memory_usage}MB")
+                os.execv(sys.executable, ['python'] + sys.argv)
+
+            await asyncio.sleep(300)  # Check every 5 minutes
+        except Exception as e:
+            logger.error(f"Error in health check: {e}")
+            await asyncio.sleep(60)  # Wait a minute before retrying
 
 async def scheduled_restart():
     """Perform scheduled restarts"""
@@ -82,8 +100,9 @@ async def main():
         bot = await init_bot()
         logger.info("Bot initialization completed")
 
-        # Start scheduled restart task
+        # Start scheduled restart and health check tasks
         asyncio.create_task(scheduled_restart())
+        asyncio.create_task(health_check())
 
         # Reset error count after successful start
         error_count = 0
@@ -101,18 +120,13 @@ async def main():
                     logger.critical("Too many errors, performing emergency restart")
                     os.execv(sys.executable, ['python'] + sys.argv)
 
-                # Continue running despite errors
                 continue
 
     except KeyboardInterrupt:
         logger.info("Received shutdown signal")
     except Exception as e:
         logger.error(f"Critical error: {e}\n{traceback.format_exc()}")
-
-        # Wait a moment before restarting
         await asyncio.sleep(5)
-
-        # Restart the entire process
         os.execv(sys.executable, ['python'] + sys.argv)
 
 if __name__ == "__main__":

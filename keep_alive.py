@@ -5,7 +5,7 @@ import time
 import psutil
 import requests
 from flask import Flask, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Configure logging
 logging.basicConfig(
@@ -34,35 +34,63 @@ def health():
 
 def run():
     """Run Flask server"""
-    keep_alive_app.run(host='0.0.0.0', port=8080)  # Changed to port 8080
+    keep_alive_app.run(host='0.0.0.0', port=8080)
 
 def ping_server():
-    """Ping server every 5 minutes to keep it alive"""
+    """Ping server every 2 minutes to keep it alive"""
+    consecutive_failures = 0
+    max_failures = 3
     while True:
         try:
-            requests.get(f"https://{os.environ['REPL_SLUG']}.{os.environ['REPL_OWNER']}.repl.co/health")
-            logger.info("Server pinged successfully")
+            response = requests.get(
+                f"https://{os.environ['REPL_SLUG']}.{os.environ['REPL_OWNER']}.repl.co/health",
+                timeout=30
+            )
+            if response.status_code == 200:
+                logger.info("Server pinged successfully")
+                consecutive_failures = 0
+            else:
+                raise Exception(f"Unexpected status code: {response.status_code}")
         except Exception as e:
-            logger.error(f"Failed to ping server: {e}")
-        time.sleep(300)  # Wait 5 minutes
+            consecutive_failures += 1
+            logger.error(f"Failed to ping server (attempt {consecutive_failures}): {e}")
+
+            if consecutive_failures >= max_failures:
+                logger.critical("Multiple ping failures detected, restarting application...")
+                os._exit(1)  # Force restart through process manager
+
+        time.sleep(120)  # Wait 2 minutes between pings
 
 def monitor_memory():
     """Monitor and manage memory usage"""
+    memory_threshold = 500  # MB
+    consecutive_high_memory = 0
+    max_high_memory = 3
+
     while True:
         try:
             process = psutil.Process(os.getpid())
             memory_usage = process.memory_info().rss / 1024 / 1024  # Convert to MB
 
-            if memory_usage > 500:  # If memory usage exceeds 500MB
-                logger.warning(f"High memory usage detected: {memory_usage}MB")
+            if memory_usage > memory_threshold:
+                consecutive_high_memory += 1
+                logger.warning(f"High memory usage detected: {memory_usage}MB (occurrence {consecutive_high_memory})")
+
                 # Trigger garbage collection
                 import gc
                 gc.collect()
 
+                if consecutive_high_memory >= max_high_memory:
+                    logger.critical("Persistent high memory usage, triggering restart...")
+                    os._exit(1)  # Force restart through process manager
+            else:
+                consecutive_high_memory = 0
+
             logger.info(f"Current memory usage: {memory_usage}MB")
         except Exception as e:
             logger.error(f"Error monitoring memory: {e}")
-        time.sleep(3600)  # Check every hour
+
+        time.sleep(300)  # Check every 5 minutes
 
 def keep_alive():
     """Start the keep-alive server and monitoring threads"""
@@ -84,6 +112,7 @@ def start_keep_alive():
     """Start keep-alive with error handling and retries"""
     max_retries = 3
     retry_count = 0
+    retry_delay = 5  # seconds
 
     while retry_count < max_retries:
         try:
@@ -94,6 +123,6 @@ def start_keep_alive():
             retry_count += 1
             logger.error(f"Failed to start keep-alive server (attempt {retry_count}): {e}")
             if retry_count < max_retries:
-                time.sleep(5)  # Wait 5 seconds before retrying
+                time.sleep(retry_delay)
             else:
                 raise
