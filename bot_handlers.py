@@ -1,10 +1,10 @@
 import os
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, Poll
 from telegram.ext import (
     Application,
     CommandHandler,
-    CallbackQueryHandler,
+    PollAnswerHandler,
     ContextTypes
 )
 
@@ -14,7 +14,6 @@ class TelegramQuizBot:
     def __init__(self, quiz_manager):
         """Initialize the quiz bot"""
         self.quiz_manager = quiz_manager
-        self.active_quizzes = {}
         self.application = None
 
     async def initialize(self, token: str):
@@ -31,7 +30,7 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("start", self.start))
             self.application.add_handler(CommandHandler("help", self.help))
             self.application.add_handler(CommandHandler("score", self.score))
-            self.application.add_handler(CallbackQueryHandler(self.handle_answer, pattern="^quiz:"))
+            self.application.add_handler(PollAnswerHandler(self.handle_answer))
 
             # Schedule quiz every 20 minutes (1200 seconds)
             self.application.job_queue.run_repeating(
@@ -55,13 +54,8 @@ class TelegramQuizBot:
         try:
             chat_id = update.effective_chat.id
             self.quiz_manager.add_active_chat(chat_id)
-
-            welcome_message = "Quiz Bot activated. Quizzes will be sent every 20 minutes.\nUse /help to see available commands."
-            await update.message.reply_text(welcome_message)
-
-            # Send first quiz immediately
+            await update.message.reply_text("Quiz Bot activated. Quizzes will be sent every 20 minutes.")
             await self.send_quiz(chat_id, context)
-
         except Exception as e:
             logger.error(f"Error in start command: {e}")
             await update.message.reply_text("Error starting the bot. Please try again.")
@@ -73,65 +67,42 @@ class TelegramQuizBot:
             await update.message.reply_text(help_text)
         except Exception as e:
             logger.error(f"Error in help command: {e}")
-            await update.message.reply_text("Error showing help. Please try again.")
+            await update.message.reply_text("Error showing help.")
 
     async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send a quiz to a specific chat"""
+        """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
             question = self.quiz_manager.get_random_question()
             if not question:
                 await context.bot.send_message(chat_id=chat_id, text="No questions available.")
                 return
 
-            keyboard = [
-                [InlineKeyboardButton(text=opt, callback_data=f"quiz:{i}")]
-                for i, opt in enumerate(question['options'])
-            ]
-
-            message = await context.bot.send_message(
+            await context.bot.send_poll(
                 chat_id=chat_id,
-                text=question['question'],
-                reply_markup=InlineKeyboardMarkup(keyboard)
+                question=question['question'],
+                options=question['options'],
+                type=Poll.QUIZ,
+                correct_option_id=question['correct_answer'],
+                is_anonymous=False
             )
-
-            self.active_quizzes[message.message_id] = {
-                'correct_answer': question['correct_answer'],
-                'participants': set()
-            }
 
         except Exception as e:
             logger.error(f"Error sending quiz: {e}")
             await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
 
     async def handle_answer(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle quiz answer callbacks"""
-        query = update.callback_query
+        """Handle quiz answers from Telegram's native quiz"""
         try:
-            quiz_id = query.message.message_id
-            user_id = query.from_user.id
-
-            if quiz_id not in self.active_quizzes:
-                await query.answer("Quiz expired")
-                return
-
-            quiz = self.active_quizzes[quiz_id]
-            if user_id in quiz['participants']:
-                await query.answer("Already answered")
-                return
-
-            selected_answer = int(query.data.split(':')[1])
-            correct = selected_answer == quiz['correct_answer']
-            quiz['participants'].add(user_id)
-
-            if correct:
-                self.quiz_manager.increment_score(user_id)
-                await query.answer("Correct")
-            else:
-                await query.answer("Wrong")
+            answer = update.poll_answer
+            if answer.user.id and answer.option_ids:
+                # For native quizzes, Telegram handles showing correct/wrong answer
+                # We just need to update the score if correct
+                poll = context.bot_data.get(answer.poll_id)
+                if poll and poll.correct_option_id in answer.option_ids:
+                    self.quiz_manager.increment_score(answer.user.id)
 
         except Exception as e:
             logger.error(f"Error handling answer: {e}")
-            await query.answer("Error processing answer")
 
     async def score(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /score command"""
@@ -156,18 +127,12 @@ async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""
     logger.info("Setting up Telegram bot...")
     try:
-        # Create bot instance
         bot = TelegramQuizBot(quiz_manager)
-
-        # Get bot token
         token = os.environ.get("TELEGRAM_TOKEN")
         if not token:
             raise ValueError("TELEGRAM_TOKEN environment variable is required")
-
-        # Initialize and start the bot
         await bot.initialize(token)
         return bot
-
     except Exception as e:
         logger.error(f"Failed to setup Telegram bot: {e}")
         raise
