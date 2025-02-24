@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from flask import Flask
 from app import app, init_bot
 from keep_alive import start_keep_alive
+import psutil # Added this import
 
 # Configure logging
 logging.basicConfig(
