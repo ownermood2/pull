@@ -56,11 +56,7 @@ class TelegramQuizBot:
             chat_id = update.effective_chat.id
             self.quiz_manager.add_active_chat(chat_id)
 
-            # Get bot info for the profile link
-            bot = await context.bot.get_me()
-            bot_username = bot.username
-
-            welcome_message = f"""🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁_𝗕𝗼𝘁 [{bot_username}](tg://user?id={bot.id}) 🇮🇳 ıII 🎉
+            welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
 
 🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
 ➜ Auto Quizzes – Fresh quiz every 20 mins!
