@@ -1,15 +1,17 @@
 import os
 import logging
 import traceback
+import asyncio
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
-from telegram import Update, Poll, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, Poll, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from telegram.ext import (
     Application,
     CommandHandler,
     PollAnswerHandler,
     ChatMemberHandler,
-    ContextTypes
+    ContextTypes,
+    CallbackQueryHandler
 )
 from telegram.constants import ParseMode
 
@@ -186,12 +188,17 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("delquiz_confirm", self.delquiz_confirm))
             self.application.add_handler(CommandHandler("broadcast", self.broadcast))
             self.application.add_handler(CommandHandler("totalquiz", self.totalquiz))
-            self.application.add_handler(CommandHandler("cleanup_quizzes", self.cleanup_quizzes))
             self.application.add_handler(CommandHandler("clear_quizzes", self.clear_quizzes))
 
             # Handle answers and chat member updates
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
             self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+
+            # Add callback query handler for clear_quizzes confirmation
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_clear_quizzes_callback,
+                pattern="^clear_quizzes_confirm_(yes|no)$"
+            ))
 
             # Schedule automated quiz job
             self.application.job_queue.run_repeating(
@@ -434,8 +441,8 @@ class TelegramQuizBot:
 /broadcast – Send announcements
 /delquiz - Delete a quiz
 /totalquiz - Show total quizzes
-/cleanup_quizzes - Clean up invalid quizzes
 /clear_quizzes - Remove all quizzes"""
+
             help_text += "\n════════════════"
             await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
         except Exception as e:
@@ -468,6 +475,7 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error showing categories: {e}")
             await update.message.reply_text("Error showing categories.")
+
 
 
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -747,7 +755,7 @@ Use /help to see all available commands! 🎮"""
                 return
 
             active_chats = self.quiz_manager.get_active_chats()
-            total_users = len(self.quiz_manager.stats)
+            total_users = len(self.quizmanager.stats)
             total_groups = len(active_chats)
 
             # Calculate active users and groups today
@@ -1507,20 +1515,61 @@ Please reply to a quiz message or use:
         logger.warning(f"Invalid quiz reply for {command} from user {update.message.from_user.id}")
 
     async def clear_quizzes(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Clear all quizzes from database - Developer only"""
+        """Clear all quizzes from database with confirmation - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Get initial count for verification
-            initial_count = len(self.quiz_manager.questions)
+            # Create confirmation keyboard
+            keyboard = [
+                [
+                    InlineKeyboardButton("✅ Yes", callback_data="clear_quizzes_confirm_yes"),
+                    InlineKeyboardButton("❌ No", callback_data="clear_quizzes_confirm_no")
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
 
-            # Clear all questions
-            result = self.quiz_manager.clear_all_questions()
+            # Send confirmation message
+            confirmation_message = """⚠️ 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
+════════════════
+Are you sure you want to delete ALL quizzes?
+This action cannot be undone.
 
-            # Format response message
-            response = f"""📊 𝗤𝘂𝗶𝘇 𝗗𝗮𝘁𝗮𝗯𝗮𝘀𝗲 𝗖𝗹𝗲𝗮𝗿𝗲𝗱
+• All questions will be removed
+• Quiz history will be cleared
+• Stats will remain intact
+
+Please confirm your choice:
+════════════════"""
+
+            # Store original message ID for cleanup
+            sent_message = await update.message.reply_text(
+                confirmation_message,
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+            # Store message IDs for cleanup
+            if 'cleanup_messages' not in context.user_data:
+                context.user_data['cleanup_messages'] = []
+            context.user_data['cleanup_messages'].extend([update.message.message_id, sent_message.message_id])
+
+        except Exception as e:
+            logger.error(f"Error in clear_quizzes: {e}")
+            await update.message.reply_text("Error starting quiz deletion process.")
+
+    async def handle_clear_quizzes_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle clear quizzes confirmation callback"""
+        try:
+            query = update.callback_query
+            await query.answer()  # Acknowledge the button click
+
+            if query.data == "clear_quizzes_confirm_yes":
+                # Clear all questions
+                result = self.quiz_manager.clear_all_questions()
+
+                response = f"""📊 𝗤𝘂𝗶𝘇 𝗗𝗮𝘁𝗮𝗯𝗮𝘀𝗲 𝗖𝗹𝗲𝗮𝗿𝗲𝗱
 ════════════════
 • Total Quizzes Removed: {result['initial_count']}
 • Database Status: Clean ✨
@@ -1529,62 +1578,32 @@ Please reply to a quiz message or use:
 Use /addquiz to add new questions.
 ════════════════"""
 
-            await update.message.reply_text(
-                response,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            logger.info(f"Cleared all quizzes. Removed {result['initial_count']} questions")
-
-        except Exception as e:
-            logger.error(f"Error in clear_quizzes: {e}")
-            await update.message.reply_text(
-                """❌ 𝗘𝗿𝗿𝗼𝗿
+            else:
+                response = """🔄 𝗢𝗽𝗲𝗿𝗮𝘁𝗶𝗼𝗻 𝗖𝗮𝗻𝗰𝗲𝗹𝗹𝗲𝗱
 ════════════════
-Failed to clear quiz database.
-Please try again later.
-════════════════""",
-                parse_mode=ParseMode.MARKDOWN
-            )
-
-    async def cleanup_quizzes(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Clean up invalid quizzes - Developer only"""
-        try:
-            if not await self.is_developer(update.message.from_user.id):
-                await self._handle_dev_command_unauthorized(update)
-                return
-
-            # Get initial count
-            initial_count = len(self.quiz_manager.questions)
-
-            # Remove invalid questions
-            result = self.quiz_manager.remove_invalid_questions()
-
-            # Format response message
-            response = f"""📊 𝗤𝘂𝗶𝘇 𝗖𝗹𝗲𝗮𝗻𝘂𝗽 𝗥𝗲𝗽𝗼𝗿𝘁
-════════════════
-• Initial Count: {result['initial_count']}
-• Removed: {result['removed_count']}
-• Remaining: {result['remaining_count']}
-
-✨ Database has been cleaned!
+Quiz database remains unchanged.
 ════════════════"""
 
-            await update.message.reply_text(
-                response,
+            # Edit the confirmation message to show the result
+            await query.edit_message_text(
+                text=response,
                 parse_mode=ParseMode.MARKDOWN
             )
-            logger.info(f"Cleaned up quizzes. Removed {result['removed_count']} invalid questions")
+
+            # Clean up messages after a delay
+            if 'cleanup_messages' in context.user_data:
+                await asyncio.sleep(10)  # Wait 10 seconds
+                for msg_id in context.user_data['cleanup_messages']:
+                    try:
+                        await context.bot.delete_message(chat_id=update.effective_chat.id,
+                        message_id=msg_id)
+                    except Exception as e:
+                        logger.error(f"Error deleting message {msg_id}: {e}")
+                context.user_data['cleanup_messages'] = []
 
         except Exception as e:
-            logger.error(f"Error in cleanup_quizzes: {e}")
-            await update.message.reply_text(
-                """❌ 𝗘𝗿𝗿𝗼𝗿
-════════════════
-Failed to clean up quizzes.
-Please try again later.
-════════════════""",
-                parse_mode=ParseMode.MARKDOWN
-            )
+            logger.error(f"Error in clear_quizzes callback: {e}")
+            await query.edit_message_text("Error processing quiz deletion.")
 
     async def setup_bot(quiz_manager):
         """Setup and start the Telegram bot"""
@@ -1600,23 +1619,23 @@ Please try again later.
             logger.error(f"Failed to setup Telegram bot: {e}")
             raise
 
-def extract_status_change(chat_member_update):
-    """Extract whether bot was added or removed."""
-    try:
-        if not chat_member_update or not hasattr(chat_member_update, 'difference'):
+    def extract_status_change(chat_member_update):
+        """Extract whether bot was added or removed."""
+        try:
+            if not chat_member_update or not hasattr(chat_member_update, 'difference'):
+                return None
+
+            status_change = chat_member_update.difference().get("status")
+            if status_change is None:
+                return None
+
+            old_status = chat_member_update.old_chat_member.status
+            new_status = chat_member_update.new_chat_member.status
+
+            was_member = old_status in ["member", "administrator", "creator"]
+            is_member = new_status in ["member", "administrator", "creator"]
+
+            return was_member, is_member
+        except Exception as e:
+            logger.error(f"Error extracting status change: {e}")
             return None
-
-        status_change = chat_member_update.difference().get("status")
-        if status_change is None:
-            return None
-
-        old_status = chat_member_update.old_chat_member.status
-        new_status = chat_member_update.new_chat_member.status
-
-        was_member = old_status in ["member", "administrator", "creator"]
-        is_member = new_status in ["member", "administrator", "creator"]
-
-        return was_member, is_member
-    except Exception as e:
-        logger.error(f"Error extracting status change: {e}")
-        return None
