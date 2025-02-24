@@ -471,12 +471,25 @@ class TelegramQuizBot:
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show user's personal stats"""
         try:
-            user = update.message.from_user
-            stats = self.quiz_manager.get_user_stats(user.id)
+            user = update.effective_user
+            if not user:
+                logger.error("No user found in update")
+                await update.message.reply_text("Error: Could not identify user.")
+                return
 
+            logger.info(f"Processing /mystats command for user {user.id} ({user.first_name})")
+
+            # Get user stats
+            stats = self.quiz_manager.get_user_stats(user.id)
+            if stats is None:
+                logger.error(f"Quiz manager returned None for user {user.id}")
+                await update.message.reply_text("Failed to retrieve stats. Please try again later.")
+                return
+
+            # Format the message
             stats_message = f"""📊 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗣𝗲𝗿𝘀𝗼𝗻𝗮𝗹 𝗦𝘁𝗮𝘁𝘀
 ════════════════
-👤 IIı {user.first_name} 🇮🇳 ıII
+👤 {user.first_name}
 
 🎯 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
 • Total Quizzes: {stats['total_quizzes']}
@@ -492,9 +505,11 @@ class TelegramQuizBot:
 Use /help to see all available commands! 🎮"""
 
             await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
+            logger.info(f"Successfully sent stats to user {user.id}")
+
         except Exception as e:
-            logger.error(f"Error getting user stats: {e}")
-            await update.message.reply_text("Error retrieving your stats.")
+            logger.error(f"Error in mystats command: {str(e)}\n{traceback.format_exc()}")
+            await update.message.reply_text("An error occurred while retrieving your stats. Please try again.")
 
     async def groupstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show comprehensive group performance stats - only works in groups"""
@@ -744,7 +759,7 @@ Use /help to see all available commands! 🎮"""
                 for stats in self.quiz_manager.stats.values()
             )
 
-            stats_message = f"""🌟 𝗚𝗹𝗼𝗯𝗮𝗹 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀  
+            stats_message = f"""🌟 𝗚𝗹𝗼𝗯𝗮𝗹 𝗦𝘁𝗮𝘁𝘁𝗶𝘀𝘁𝗶𝗰𝘀  
 ════════════════  
 🎯 𝗖𝗼𝗺𝗺𝘂𝗻𝗶𝘁𝘆 𝗜𝗻𝘀𝗶𝗴𝗵𝘁𝘀
 👥 Total Groups: {total_groups}  
