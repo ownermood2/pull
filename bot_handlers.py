@@ -94,16 +94,11 @@ class TelegramQuizBot:
 /help – Available commands  
 /category – View Topics
 /quiz – Try a quiz demo  
-/report – Flag incorrect questions  
 
 📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗  
 /mystats - Your Performance 
 /groupstats – Your group performance   
 /leaderboard – See champions  
-
-⚙️ 𝗔𝗗𝗠𝗜𝗡 𝗖𝗢𝗡𝗧𝗥𝗢𝗟𝗦  
-/reload –  Restart the bot    
-/settings – Customize bot preferences  
 
 🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
 /allreload – Full bot restart  
