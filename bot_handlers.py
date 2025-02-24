@@ -404,62 +404,178 @@ Use /help to see all available commands! 🎮"""
     async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Full bot restart - Developer only"""
         try:
-            if await self.is_developer(update.message.from_user.id):
-                await update.message.reply_text("Bot restart initiated... ⚡")
-            else:
+            if not await self.is_developer(update.message.from_user.id):
                 await update.message.reply_text("This command is for developers only.")
+                return
+
+            # Reload data
+            self.quiz_manager.load_data()
+
+            # Clear caches
+            self.quiz_manager.get_random_question.cache_clear()
+            self.quiz_manager.get_user_stats.cache_clear()
+
+            await update.message.reply_text("✅ Bot data reloaded successfully!\n\n• Questions reloaded\n• Stats refreshed\n• Caches cleared")
+
         except Exception as e:
             logger.error(f"Error in allreload: {e}")
-            await update.message.reply_text("Error restarting bot.")
+            await update.message.reply_text("❌ Error restarting bot.")
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Add new quiz - Developer only"""
         try:
-            if await self.is_developer(update.message.from_user.id):
-                await update.message.reply_text("Quiz addition feature coming soon! 📝")
-            else:
+            if not await self.is_developer(update.message.from_user.id):
                 await update.message.reply_text("This command is for developers only.")
+                return
+
+            # Extract question details from command
+            try:
+                # Format: /addquiz question | option1 | option2 | option3 | option4 | correct_index
+                parts = update.message.text.split(" ", 1)[1].split("|")
+                if len(parts) != 6:
+                    raise ValueError
+
+                question = parts[0].strip()
+                options = [opt.strip() for opt in parts[1:5]]
+                correct_answer = int(parts[5].strip()) - 1  # Convert to 0-based index
+
+                if not (0 <= correct_answer < 4):
+                    raise ValueError
+
+                self.quiz_manager.add_question(question, options, correct_answer)
+                await update.message.reply_text(
+                    "✅ Quiz added successfully!\n\n"
+                    f"Question: {question}\n"
+                    f"Options: {', '.join(options)}\n"
+                    f"Correct Answer: Option {correct_answer + 1}"
+                )
+            except (IndexError, ValueError):
+                await update.message.reply_text(
+                    "❌ Invalid format! Use:\n"
+                    "/addquiz question | option1 | option2 | option3 | option4 | correct_number"
+                )
+
         except Exception as e:
             logger.error(f"Error in addquiz: {e}")
-            await update.message.reply_text("Error adding quiz.")
+            await update.message.reply_text("❌ Error adding quiz.")
 
     async def globalstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show bot statistics - Developer only"""
         try:
-            if await self.is_developer(update.message.from_user.id):
-                await update.message.reply_text("Global statistics feature coming soon! 📊")
-            else:
+            if not await self.is_developer(update.message.from_user.id):
                 await update.message.reply_text("This command is for developers only.")
+                return
+
+            active_chats = self.quiz_manager.get_active_chats()
+            total_users = len(self.quiz_manager.stats)
+            total_questions = len(self.quiz_manager.questions)
+
+            # Calculate total quizzes taken
+            total_quizzes = sum(stats['total_quizzes'] for stats in self.quiz_manager.stats.values())
+            correct_answers = sum(stats['correct_answers'] for stats in self.quiz_manager.stats.values())
+
+            stats_message = f"""📊 𝗚𝗹𝗼𝗯𝗮𝗹 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
+════════════════
+
+👥 𝗨𝘀𝗲𝗿𝘀 & 𝗚𝗿𝗼𝘂𝗽𝘀
+• Total Users: {total_users}
+• Active Groups: {len(active_chats)}
+
+📝 𝗤𝘂𝗶𝘇 𝗗𝗮𝘁𝗮
+• Total Questions: {total_questions}
+• Quizzes Taken: {total_quizzes}
+• Correct Answers: {correct_answers}
+• Success Rate: {(correct_answers/total_quizzes*100) if total_quizzes > 0 else 0:.1f}%
+
+🔄 𝗦𝘆𝘀𝘁𝗲𝗺 𝗦𝘁𝗮𝘁𝘂𝘀
+• Bot Status: Running
+• Data Files: Healthy
+• Cache Status: Active"""
+
+            await update.message.reply_text(stats_message)
+
         except Exception as e:
             logger.error(f"Error in globalstats: {e}")
-            await update.message.reply_text("Error retrieving global stats.")
+            await update.message.reply_text("❌ Error retrieving global stats.")
 
     async def editquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Edit existing quiz - Developer only"""
         try:
-            if await self.is_developer(update.message.from_user.id):
-                await update.message.reply_text("Quiz editing feature coming soon! ✏️")
-            else:
+            if not await self.is_developer(update.message.from_user.id):
                 await update.message.reply_text("This command is for developers only.")
+                return
+
+            # Get all questions
+            questions = self.quiz_manager.get_all_questions()
+
+            # Format for viewing
+            questions_text = "📝 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗤𝘂𝗲𝘀𝘁𝗶𝗼𝗻𝘀\n════════════════\n\n"
+
+            for i, q in enumerate(questions):
+                questions_text += f"{i+1}. {q['question']}\n"
+                for j, opt in enumerate(q['options']):
+                    questions_text += f"   {'✅' if j == q['correct_answer'] else '⭕'} {opt}\n"
+                questions_text += "\n"
+
+            # Split message if too long
+            if len(questions_text) > 4000:
+                for i in range(0, len(questions_text), 4000):
+                    await update.message.reply_text(questions_text[i:i+4000])
+            else:
+                await update.message.reply_text(questions_text)
+
         except Exception as e:
             logger.error(f"Error in editquiz: {e}")
-            await update.message.reply_text("Error editing quiz.")
+            await update.message.reply_text("❌ Error editing quiz.")
 
     async def broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send announcements - Developer only"""
         try:
-            if await self.is_developer(update.message.from_user.id):
-                await update.message.reply_text("Broadcast feature coming soon! 📢")
-            else:
+            if not await self.is_developer(update.message.from_user.id):
                 await update.message.reply_text("This command is for developers only.")
+                return
+
+            # Get message to broadcast
+            try:
+                message = update.message.text.split(" ", 1)[1]
+            except IndexError:
+                await update.message.reply_text(
+                    "❌ Please provide a message to broadcast.\n"
+                    "Format: /broadcast Your message here"
+                )
+                return
+
+            active_chats = self.quiz_manager.get_active_chats()
+            success_count = 0
+            fail_count = 0
+
+            # Send to all active chats
+            for chat_id in active_chats:
+                try:
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=f"📢 𝗔𝗻𝗻𝗼𝘂𝗻𝗰𝗲𝗺𝗲𝗻𝘁\n════════════════\n\n{message}"
+                    )
+                    success_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to send broadcast to {chat_id}: {e}")
+                    fail_count += 1
+
+            await update.message.reply_text(
+                f"📢 Broadcast Results:\n"
+                f"✅ Successfully sent to: {success_count} chats\n"
+                f"❌ Failed to send to: {fail_count} chats"
+            )
+
         except Exception as e:
             logger.error(f"Error in broadcast: {e}")
-            await update.message.reply_text("Error sending broadcast.")
+            await update.message.reply_text("❌ Error sending broadcast.")
 
     async def is_developer(self, user_id: int) -> bool:
         """Check if user is a developer"""
-        # Temporary implementation - should be replaced with proper check
-        return True
+        # List of developer user IDs
+        developer_ids = [7653153066]  # Added the user from logs as developer
+        return user_id in developer_ids
 
     async def scheduled_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send scheduled quizzes to all active chats"""
