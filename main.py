@@ -67,7 +67,7 @@ async def main():
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
 
-        # Start keep-alive server
+        # Start keep-alive server first
         start_keep_alive()
         logger.info("Keep-alive server started")
 

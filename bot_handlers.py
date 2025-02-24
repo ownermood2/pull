@@ -3,13 +3,14 @@ import logging
 import traceback
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
-from telegram import Update, Poll, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, Poll, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from telegram.ext import (
     Application,
     CommandHandler,
     PollAnswerHandler,
     ChatMemberHandler,
-    ContextTypes
+    ContextTypes,
+    CallbackQueryHandler
 )
 from telegram.constants import ParseMode
 
@@ -24,6 +25,85 @@ class TelegramQuizBot:
         self.COOLDOWN_PERIOD = 3  # seconds between commands
         self.command_history = defaultdict(lambda: deque(maxlen=10))  # Store last 10 commands per chat
         self.cleanup_interval = 3600  # 1 hour in seconds
+
+    async def add_rollback_button(self, chat_id: int, message_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Add rollback button to quiz message"""
+        keyboard = [
+            [InlineKeyboardButton("↩️ Go Back", callback_data=f"rollback_{message_id}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        try:
+            await context.bot.edit_message_reply_markup(
+                chat_id=chat_id,
+                message_id=message_id,
+                reply_markup=reply_markup
+            )
+        except Exception as e:
+            logger.error(f"Error adding rollback button: {e}")
+
+    async def handle_button(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle button clicks"""
+        query = update.callback_query
+        await query.answer()
+
+        if query.data.startswith("rollback_"):
+            try:
+                # Get the message ID to rollback to
+                msg_id = int(query.data.split("_")[1])
+
+                # Get all messages after this one
+                messages_to_delete = []
+                async for message in context.bot.get_chat_history(
+                    query.message.chat_id,
+                    limit=50,
+                    offset_id=msg_id
+                ):
+                    if message.from_user.id == context.bot.id:
+                        messages_to_delete.append(message.message_id)
+
+                # Delete messages
+                for del_msg_id in messages_to_delete:
+                    try:
+                        await context.bot.delete_message(
+                            chat_id=query.message.chat_id,
+                            message_id=del_msg_id
+                        )
+                    except Exception:
+                        continue
+
+                # Send new quiz
+                await self.send_quiz(query.message.chat_id, context)
+
+            except Exception as e:
+                logger.error(f"Error handling rollback: {e}")
+
+    async def scheduled_cleanup(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Automatically clean old messages every hour"""
+        try:
+            active_chats = self.quiz_manager.get_active_chats()
+            for chat_id in active_chats:
+                try:
+                    # Get bot messages older than 2 hours
+                    messages_to_delete = []
+                    async for message in context.bot.get_chat_history(chat_id, limit=100):
+                        if (message.from_user.id == context.bot.id and 
+                            (datetime.now() - message.date).total_seconds() > 7200):  # 2 hours
+                            messages_to_delete.append(message.message_id)
+
+                    # Delete old messages
+                    for msg_id in messages_to_delete:
+                        try:
+                            await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                        except Exception:
+                            continue
+
+                    logger.info(f"Cleaned {len(messages_to_delete)} old messages from chat {chat_id}")
+                except Exception as e:
+                    logger.error(f"Error cleaning messages in chat {chat_id}: {e}")
+
+        except Exception as e:
+            logger.error(f"Error in scheduled cleanup: {e}")
 
     async def initialize(self, token: str):
         """Initialize and start the bot"""
@@ -43,8 +123,6 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("mystats", self.mystats))
             self.application.add_handler(CommandHandler("groupstats", self.groupstats))
             self.application.add_handler(CommandHandler("leaderboard", self.leaderboard))
-            self.application.add_handler(CommandHandler("rollback", self.rollback))
-            self.application.add_handler(CommandHandler("cleanchat", self.clean_chat))
 
             # Developer commands
             self.application.add_handler(CommandHandler("allreload", self.allreload))
@@ -53,32 +131,28 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("editquiz", self.editquiz))
             self.application.add_handler(CommandHandler("broadcast", self.broadcast))
 
-            # Handle answers and chat member updates
+            # Handle answers, buttons and chat member updates
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
+            self.application.add_handler(CallbackQueryHandler(self.handle_button))
             self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
 
             # Schedule cleanup and quiz jobs
             self.application.job_queue.run_repeating(
                 self.scheduled_quiz,
-                interval=1200,
+                interval=1200,  # Every 20 minutes
                 first=10
             )
             self.application.job_queue.run_repeating(
-                self.cleanup_old_polls,
-                interval=3600,
+                self.scheduled_cleanup,
+                interval=3600,  # Every hour
                 first=300
-            )
-            self.application.job_queue.run_repeating(
-                self.cleanup_old_messages,
-                interval=self.cleanup_interval,
-                first=self.cleanup_interval
             )
 
             await self.application.initialize()
             await self.application.start()
             await self.application.updater.start_polling()
-            return self
 
+            return self
         except Exception as e:
             logger.error(f"Failed to initialize bot: {e}")
             raise
@@ -142,145 +216,6 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error sending welcome message: {e}")
 
-    async def rollback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Rollback the last command in the chat"""
-        chat_id = update.effective_chat.id
-
-        if not self.command_history[chat_id]:
-            await update.message.reply_text("No commands to rollback!")
-            return
-
-        last_command = self.command_history[chat_id].pop()
-        # Implement rollback logic based on command type
-        if last_command.startswith("/quiz"):
-            # Delete last quiz
-            try:
-                await context.bot.delete_message(
-                    chat_id=chat_id,
-                    message_id=int(last_command.split("_")[1])
-                )
-                await update.message.reply_text("Last quiz rolled back successfully!")
-            except Exception as e:
-                logger.error(f"Error rolling back quiz: {e}")
-                await update.message.reply_text("Failed to rollback last quiz.")
-
-    async def clean_chat(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Clean old bot messages from the chat"""
-        chat_id = update.effective_chat.id
-
-        try:
-            # Get list of message IDs to delete
-            messages_to_delete = []
-            async for message in context.bot.get_chat_history(chat_id, limit=100):
-                if message.from_user.id == context.bot.id:
-                    messages_to_delete.append(message.message_id)
-
-            # Delete messages
-            for msg_id in messages_to_delete:
-                try:
-                    await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                except Exception:
-                    continue
-
-            await update.message.reply_text("Chat cleaned successfully!", delete_after=5)
-        except Exception as e:
-            logger.error(f"Error cleaning chat: {e}")
-            await update.message.reply_text("Failed to clean chat.")
-
-    async def cleanup_old_messages(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Automatically clean old bot messages"""
-        try:
-            for chat_id in self.quiz_manager.get_active_chats():
-                try:
-                    messages_to_delete = []
-                    async for message in context.bot.get_chat_history(chat_id, limit=100):
-                        if (message.from_user.id == context.bot.id and 
-                            (datetime.now() - message.date).total_seconds() > self.cleanup_interval):
-                            messages_to_delete.append(message.message_id)
-
-                    for msg_id in messages_to_delete:
-                        try:
-                            await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                        except Exception:
-                            continue
-                except Exception as e:
-                    logger.error(f"Error cleaning messages in chat {chat_id}: {e}")
-        except Exception as e:
-            logger.error(f"Error in cleanup_old_messages: {e}")
-
-    async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle the /help command"""
-        try:
-            # Check if user is developer
-            is_dev = await self.is_developer(update.message.from_user.id)
-
-            help_text = """📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
-════════════════
-🎯 𝗚𝗘𝗡𝗘𝗥𝗔𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
-/start – Begin your quiz journey  
-/help – Available commands  
-/category – View Topics
-/quiz – Try a quiz demo  
-            
-📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗  
-/mystats - Your Performance 
-/groupstats – Your group performance   
-/leaderboard – See champions  
-            
-🛠️ 𝗨𝗧𝗜𝗟𝗜𝗧𝗜𝗘𝗦
-/rollback - Undo last command
-/cleanchat - Remove old messages"""
-
-            # Add developer commands only for developers
-            if is_dev:
-                help_text += """
-            
-🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
-/allreload – Full bot restart  
-/addquiz – Add new questions
-/globalstats – Bot stats   
-/editquiz – Modify quizzes  
-/broadcast – Send announcements"""
-
-            help_text += "\n════════════════"
-            await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
-        except Exception as e:
-            logger.error(f"Error in help command: {e}")
-            await update.message.reply_text("Error showing help.")
-
-    async def check_cooldown(self, user_id: int, command: str) -> bool:
-        """Check if command is on cooldown for user"""
-        current_time = datetime.now().timestamp()
-        last_used = self.command_cooldowns[user_id][command]
-        if current_time - last_used < self.COOLDOWN_PERIOD:
-            return False
-        self.command_cooldowns[user_id][command] = current_time
-        return True
-
-    async def cleanup_old_polls(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Remove old poll data to prevent memory leaks"""
-        try:
-            current_time = datetime.now()
-            keys_to_remove = []
-
-            for key, poll_data in context.bot_data.items():
-                if not key.startswith('poll_'):
-                    continue
-
-                # Remove polls older than 1 hour
-                if 'timestamp' in poll_data:
-                    poll_time = datetime.fromisoformat(poll_data['timestamp'])
-                    if (current_time - poll_time) > timedelta(hours=1):
-                        keys_to_remove.append(key)
-
-            for key in keys_to_remove:
-                del context.bot_data[key]
-
-            logger.info(f"Cleaned up {len(keys_to_remove)} old poll entries")
-
-        except Exception as e:
-            logger.error(f"Error cleaning up old polls: {e}")
-
     async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
@@ -312,6 +247,9 @@ class TelegramQuizBot:
             )
 
             if message and message.poll:
+                # Add rollback button
+                await self.add_rollback_button(chat_id, message.message_id, context)
+
                 poll_data = {
                     'chat_id': chat_id,
                     'correct_option_id': question['correct_answer'],
@@ -409,20 +347,16 @@ class TelegramQuizBot:
 /help – Available commands  
 /category – View Topics
 /quiz – Try a quiz demo  
-            
+
 📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗  
 /mystats - Your Performance 
 /groupstats – Your group performance   
-/leaderboard – See champions  
-            
-🛠️ 𝗨𝗧𝗜𝗟𝗜𝗧𝗜𝗘𝗦
-/rollback - Undo last command
-/cleanchat - Remove old messages"""
+/leaderboard – See champions"""
 
             # Add developer commands only for developers
             if is_dev:
                 help_text += """
-            
+
 🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
 /allreload – Full bot restart  
 /addquiz – Add new questions
@@ -813,8 +747,7 @@ Use /help to see all available commands! 🎮"""
 
             active_chats = self.quiz_manager.get_active_chats()
             success_count = 0
-            fail_count = 0
-
+            fail_count =0
             # Send to all active chats
             for chat_id in active_chats:
                 try:
@@ -881,13 +814,13 @@ Use /help to see all available commands! 🎮"""
 1. Click Group Settings
 2. Select Administrators
 3. Add "IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII" as Admin
-
+            
 🎯 𝗕𝗲𝗻𝗲𝗳𝗶𝘁𝘀
 • Automatic Quiz Delivery
 • Message Management
 • Enhanced Group Analytics
 • Leaderboard Updates
-
+            
 ✨ Upgrade your quiz experience now!
 ════════════════"""
 
@@ -941,6 +874,39 @@ Use /help to see all available commands! 🎮"""
 
         except Exception as e:
             logger.error(f"Error in scheduled quiz: {e}")
+
+    async def check_cooldown(self, user_id: int, command: str) -> bool:
+        """Check if command is on cooldown for user"""
+        current_time = datetime.now().timestamp()
+        last_used = self.command_cooldowns[user_id][command]
+        if current_time - last_used < self.COOLDOWN_PERIOD:
+            return False
+        self.command_cooldowns[user_id][command] = current_time
+        return True
+
+    async def cleanup_old_polls(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Remove old poll data to prevent memory leaks"""
+        try:
+            current_time = datetime.now()
+            keys_to_remove = []
+
+            for key, poll_data in context.bot_data.items():
+                if not key.startswith('poll_'):
+                    continue
+
+                # Remove polls older than 1 hour
+                if 'timestamp' in poll_data:
+                    poll_time = datetime.fromisoformat(poll_data['timestamp'])
+                    if (current_time - poll_time) > timedelta(hours=1):
+                        keys_to_remove.append(key)
+
+            for key in keys_to_remove:
+                del context.bot_data[key]
+
+            logger.info(f"Cleaned up {len(keys_to_remove)} old poll entries")
+
+        except Exception as e:
+            logger.error(f"Error cleaning up old polls: {e}")
 
 async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""

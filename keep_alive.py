@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 keep_alive_app = Flask('')
 start_time = datetime.now()
 
-@keep_alive_app.route('/')
-def home():
+@keep_alive_app.route('/health')
+def health():
     """Health check endpoint"""
     uptime = datetime.now() - start_time
     process = psutil.Process(os.getpid())
@@ -34,13 +34,13 @@ def home():
 
 def run():
     """Run Flask server"""
-    keep_alive_app.run(host='0.0.0.0', port=5000)
+    keep_alive_app.run(host='0.0.0.0', port=8080)  # Changed to port 8080
 
 def ping_server():
     """Ping server every 5 minutes to keep it alive"""
     while True:
         try:
-            requests.get(f"https://{os.environ['REPL_SLUG']}.{os.environ['REPL_OWNER']}.repl.co")
+            requests.get(f"https://{os.environ['REPL_SLUG']}.{os.environ['REPL_OWNER']}.repl.co/health")
             logger.info("Server pinged successfully")
         except Exception as e:
             logger.error(f"Failed to ping server: {e}")
