@@ -1,5 +1,7 @@
 import os
 import logging
+import traceback
+from datetime import datetime
 from telegram import Update, Poll
 from telegram.ext import (
     Application,
@@ -157,7 +159,8 @@ class TelegramQuizBot:
                 await context.bot.send_message(chat_id=chat_id, text="No questions available.")
                 return
 
-            await context.bot.send_poll(
+            # Send the poll
+            message = await context.bot.send_poll(
                 chat_id=chat_id,
                 question=question['question'],
                 options=question['options'],
@@ -166,27 +169,64 @@ class TelegramQuizBot:
                 is_anonymous=False
             )
 
+            # Store quiz data with chat_id in context
+            if message and message.poll:
+                poll_data = {
+                    'chat_id': chat_id,
+                    'correct_option_id': question['correct_answer'],
+                    'user_answers': {},
+                    'poll_id': message.poll.id,
+                    'question': question['question']
+                }
+                context.bot_data[f"poll_{message.poll.id}"] = poll_data
+                logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}, correct_option={question['correct_answer']}")
+
         except Exception as e:
-            logger.error(f"Error sending quiz: {e}")
+            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
             await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
 
     async def handle_answer(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle quiz answers from Telegram's native quiz"""
         try:
             answer = update.poll_answer
-            if answer.user.id and answer.option_ids:
-                poll = context.bot_data.get(answer.poll_id)
-                if poll and poll.correct_option_id in answer.option_ids:
-                    # Record both global and group-specific score
-                    self.quiz_manager.increment_score(answer.user.id)
+            if not answer or not answer.poll_id or not answer.user:
+                logger.warning("Received invalid poll answer")
+                return
 
-                    # If answer was in a group, record group stats
-                    chat_id = getattr(update.effective_chat, 'id', None)
-                    if chat_id:
-                        self.quiz_manager.record_group_attempt(answer.user.id, chat_id, True)
+            logger.info(f"Received answer from user {answer.user.id} for poll {answer.poll_id}")
+
+            # Get quiz data from context
+            poll_data = context.bot_data.get(f"poll_{answer.poll_id}")
+            if not poll_data:
+                logger.warning(f"No poll data found for poll_id {answer.poll_id}")
+                return
+
+            # Check if this is a correct answer
+            is_correct = poll_data['correct_option_id'] in answer.option_ids
+            chat_id = poll_data['chat_id']
+
+            # Record the answer in poll_data
+            poll_data['user_answers'][answer.user.id] = {
+                'option_ids': answer.option_ids,
+                'is_correct': is_correct,
+                'timestamp': datetime.now().isoformat()
+            }
+
+            # Record both global and group-specific score
+            if is_correct:
+                self.quiz_manager.increment_score(answer.user.id)
+                logger.info(f"Recorded correct answer for user {answer.user.id}")
+
+            # Record group attempt
+            self.quiz_manager.record_group_attempt(
+                user_id=answer.user.id,
+                chat_id=chat_id,
+                is_correct=is_correct
+            )
+            logger.info(f"Recorded group attempt for user {answer.user.id} in chat {chat_id} (correct: {is_correct})")
 
         except Exception as e:
-            logger.error(f"Error handling answer: {e}")
+            logger.error(f"Error handling answer: {str(e)}\n{traceback.format_exc()}")
 
     async def quiz_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /quiz command"""

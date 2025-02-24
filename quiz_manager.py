@@ -257,7 +257,8 @@ class QuizManager:
                 'last_activity_date': None,
                 'daily_activity': {},
                 'current_streak': 0,
-                'longest_streak': 0
+                'longest_streak': 0,
+                'last_correct_date': None #added to track streak in group
             }
 
         group_stats = stats['groups'][chat_id]
@@ -275,14 +276,18 @@ class QuizManager:
             group_stats['daily_activity'][current_date]['correct'] += 1
 
             # Update streak
-            if group_stats['last_activity_date'] == (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'):
+            if group_stats.get('last_correct_date') == (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'):
                 group_stats['current_streak'] += 1
             else:
                 group_stats['current_streak'] = 1
 
             group_stats['longest_streak'] = max(group_stats['current_streak'], group_stats['longest_streak'])
+            group_stats['last_correct_date'] = current_date
+        else:
+            group_stats['current_streak'] = 0
 
         self.save_data()
+        logger.info(f"Updated group stats for user {user_id} in group {chat_id}")
 
 
     def add_question(self, question: str, options: List[str], correct_answer: int):
