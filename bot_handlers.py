@@ -341,6 +341,7 @@ class TelegramQuizBot:
             await update.message.reply_text("Error showing categories.")
 
 
+
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show user's personal stats"""
         try:
