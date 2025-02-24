@@ -172,6 +172,8 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("addquiz", self.addquiz))
             self.application.add_handler(CommandHandler("globalstats", self.globalstats))
             self.application.add_handler(CommandHandler("editquiz", self.editquiz))
+            self.application.add_handler(CommandHandler("delquiz", self.delquiz))
+            self.application.add_handler(CommandHandler("delquiz_confirm", self.delquiz_confirm))
             self.application.add_handler(CommandHandler("broadcast", self.broadcast))
 
             # Handle answers and chat member updates
@@ -187,6 +189,11 @@ class TelegramQuizBot:
             self.application.job_queue.run_repeating(
                 self.scheduled_cleanup,
                 interval=3600,  # Every hour
+                first=300
+            )
+            self.application.job_queue.run_repeating(
+                self.cleanup_old_polls,
+                interval=3600, #Every Hour
                 first=300
             )
 
@@ -388,7 +395,8 @@ class TelegramQuizBot:
 /addquiz – Add new questions
 /globalstats – Bot stats   
 /editquiz – Modify quizzes  
-/broadcast – Send announcements"""
+/broadcast – Send announcements
+/delquiz - Delete a quiz"""
 
             help_text += "\n════════════════"
             await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
@@ -422,6 +430,7 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error showing categories: {e}")
             await update.message.reply_text("Error showing categories.")
+
 
 
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -732,28 +741,76 @@ Use /help to see all available commands! 🎮"""
                 await self._handle_dev_command_unauthorized(update)
                 return
 
+            # Parse command arguments
+            args = context.args
+            page = 1
+            per_page = 5
+
+            if args and args[0].isdigit():
+                page = max(1, int(args[0]))
+
             # Get all questions
             questions = self.quiz_manager.get_all_questions()
+            total_questions = len(questions)
+            total_pages = max(1, (total_questions + per_page - 1) // per_page)
+            page = min(page, total_pages)
 
-            # Format for viewing
-            questions_text = "📝 𝗔𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝗤𝘂𝗲𝘀𝘁𝗶𝗼𝗻𝘀\n════════════════\n\n"
+            # Calculate slice indices
+            start_idx = (page - 1) * per_page
+            end_idx = min(start_idx + per_page, total_questions)
 
-            for i, q in enumerate(questions):
-                questions_text += f"{i+1}. {q['question']}\n"
+            # Format header
+            questions_text = f"""📝 𝗤𝘂𝗶𝘇 𝗘𝗱𝗶𝘁𝗼𝗿 𝗣𝗮𝗻𝗲𝗹
+════════════════
+📊 𝗦𝘁𝗮𝘁𝘂𝘀
+• Total Questions: {total_questions}
+• Showing: {start_idx + 1}-{end_idx}
+• Page: {page}/{total_pages}
+
+📌 𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀
+• View different pages: /editquiz <page_number>
+• Delete a question: /delquiz <question_number>
+• Add new questions: /addquiz
+
+🎯 𝗤𝘂𝗲𝘀𝘁𝗶𝗼𝗻𝘀
+"""
+
+            # Add questions with proper formatting
+            for i, q in enumerate(questions[start_idx:end_idx], start=start_idx + 1):
+                questions_text += f"\n{i}. {q['question']}\n"
                 for j, opt in enumerate(q['options']):
-                    questions_text += f"   {'✅' if j == q['correct_answer'] else '⭕'} {opt}\n"
+                    status = '✅' if j == q['correct_answer'] else '⭕'
+                    questions_text += f"   {status} {opt}\n"
                 questions_text += "\n"
+
+            # Add navigation footer if multiple pages
+            if total_pages > 1:
+                questions_text += "\n📖 𝗣𝗮𝗴𝗲 𝗡𝗮𝘃𝗶𝗴𝗮𝘁𝗶𝗼𝗻\n"
+                if page > 1:
+                    questions_text += f"← Previous: /editquiz {page-1}\n"
+                if page < total_pages:
+                    questions_text += f"→ Next: /editquiz {page+1}\n"
+
+            questions_text += "\n════════════════"
 
             # Split message if too long
             if len(questions_text) > 4000:
-                for i in range(0, len(questions_text), 4000):
-                    await update.message.reply_text(questions_text[i:i+4000], parse_mode=ParseMode.MARKDOWN)
+                chunks = [questions_text[i:i+4000] for i in range(0, len(questions_text), 4000)]
+                for chunk in chunks:
+                    await update.message.reply_text(chunk, parse_mode=ParseMode.MARKDOWN)
             else:
                 await update.message.reply_text(questions_text, parse_mode=ParseMode.MARKDOWN)
 
         except Exception as e:
-            logger.error(f"Error in editquiz: {e}")
-            await update.message.reply_text("❌ Error editing quiz.", parse_mode=ParseMode.MARKDOWN)
+            logger.error(f"Error in editquiz: {e}\n{traceback.format_exc()}")
+            error_message = """❌ 𝗘𝗿𝗿𝗼𝗿 𝗘𝗱𝗶𝘁𝗶𝗻𝗴 𝗤𝘂𝗶𝘇
+════════════════
+An error occurred while processing your request.
+Please try again or contact support if the issue persists.
+
+⚠️ Error Details: Command processing failed
+════════════════"""
+            await update.message.reply_text(error_message, parse_mode=ParseMode.MARKDOWN)
 
     async def broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send announcements - Developer only"""
@@ -945,6 +1002,99 @@ Use /help to see all available commands! 🎮"""
 
         except Exception as e:
             logger.error(f"Error cleaning up old polls: {e}")
+
+    async def delquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Delete a quiz question - Developer only"""
+        try:
+            if not await self.is_developer(update.message.from_user.id):
+                await self._handle_dev_command_unauthorized(update)
+                return
+
+            # Parse command arguments
+            args = context.args
+            if not args or not args[0].isdigit():
+                await update.message.reply_text(
+                    "❌ Please provide a valid question number to delete.\n"
+                    "Example: /delquiz 5",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return
+
+            question_num = int(args[0])
+            questions = self.quiz_manager.get_all_questions()
+
+            if question_num < 1 or question_num > len(questions):
+                await update.message.reply_text(
+                    f"❌ Invalid question number. Please choose a number between 1 and {len(questions)}.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return
+
+            # Get question details for confirmation
+            question = questions[question_num - 1]
+            confirmation_text = f"""⚠️ 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
+════════════════
+You are about to delete the following question:
+
+📝 Question #{question_num}:
+{question['question']}
+
+Options:
+"""
+            for i, opt in enumerate(question['options']):
+                status = '✅' if i == question['correct_answer'] else '⭕'
+                confirmation_text += f"{status} {opt}\n"
+
+            confirmation_text += "\nTo confirm deletion, reply with: /delquiz_confirm " + str(question_num)
+            confirmation_text += "\n════════════════"
+
+            await update.message.reply_text(confirmation_text, parse_mode=ParseMode.MARKDOWN)
+
+        except Exception as e:
+            logger.error(f"Error in delquiz: {e}")
+            await update.message.reply_text(
+                "❌ Error processing delete request. Please try again.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+    async def delquiz_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Confirm and execute quiz question deletion - Developer only"""
+        try:
+            if not await self.is_developer(update.message.from_user.id):
+                await self._handle_dev_command_unauthorized(update)
+                return
+
+            args = context.args
+            if not args or not args[0].isdigit():
+                return
+
+            question_num = int(args[0])
+            questions = self.quiz_manager.get_all_questions()
+
+            if question_num < 1 or question_num > len(questions):
+                return
+
+            # Delete the question
+            self.quiz_manager.delete_question(question_num - 1)
+
+            success_message = f"""✅ 𝗤𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗗𝗲𝗹𝗲𝘁𝗲𝗱
+════════════════
+Successfully deleted question #{question_num}
+
+📊 Updated Statistics:
+• Total Questions: {len(self.quiz_manager.get_all_questions())}
+
+Use /editquiz to view remaining questions
+════════════════"""
+
+            await update.message.reply_text(success_message, parse_mode=ParseMode.MARKDOWN)
+
+        except Exception as e:
+            logger.error(f"Error in delquiz_confirm: {e}")
+            await update.message.reply_text(
+                "❌ Error deleting question. Please try again.",
+                parse_mode=ParseMode.MARKDOWN
+            )
 
 async def setup_bot(quiz_manager):
     """Setup and start the Telegram bot"""
