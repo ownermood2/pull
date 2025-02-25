@@ -745,7 +745,7 @@ class TelegramQuizBot:
             medals = ["🥇", "🥈", "🥉"]
             for rank, entry in enumerate(leaderboard[:10], 1):
                 try:
-                    # Get user info from Telegram
+                    #                    # Get user info from Telegram
                     user = await context.bot.get_chat(entry['user_id'])
                     username = user.first_name or user.username or "Anonymous"
 
@@ -788,82 +788,66 @@ class TelegramQuizBot:
             await update.message.reply_text("❌ Error retrieving leaderboard. Please try again.")
 
     async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Reload all bot data and restore state - Developer only"""
+        """Reload all data and restart bot - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Send initial message
+            # Send initial status
             status_message = await update.message.reply_text(
-                "🔄 𝗜𝗻𝗶𝘁𝗶𝗮𝘁𝗶𝗻𝗴 𝗙𝘂𝗹𝗹 𝗕𝗼𝘁 𝗥𝗲𝗹𝗼𝗮𝗱\n════════════════",
+                "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n⏳ Saving current state...",
                 parse_mode=ParseMode.MARKDOWN
             )
 
             try:
-                # Step 1: Save current state
+                # Save current state
+                self.quiz_manager.save_data(force=True)
                 await status_message.edit_text(
-                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n"
-                    "════════════════\n"
-                    "⏳ Saving current state...",
+                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n✅ Current state saved\n⏳ Reloading database...",
                     parse_mode=ParseMode.MARKDOWN
                 )
 
-                # Get initial counts
-                initial_users = len(self.quiz_manager.stats)
-                initial_groups = len(self.quiz_manager.get_active_chats())
-                initial_questions = len(self.quiz_manager.questions)
+                # Reload data
+                self.quiz_manager.load_data()
 
-                # Step 2: Reload all data
-                await status_message.edit_text(
-                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n"
-                    "════════════════\n"
-                    "✅ Current state saved\n"
-                    "⏳ Reloading database...",
-                    parse_mode=ParseMode.MARKDOWN
-                )
-
-                # Perform the reload
-                self.quiz_manager.reload_data()
-
-                # Get final counts
-                final_users = len(self.quiz_manager.stats)
-                final_groups = len(self.quiz_manager.get_active_chats())
-                final_questions = len(self.quiz_manager.questions)
-
-                # Calculate changes
-                new_users = final_users - initial_users
-                new_groups = final_groups - initial_groups
-                new_questions = final_questions - initial_questions
-
-                # Final success message
-                success_message = f"""✅ 𝗕𝗼𝘁 𝗥𝗲𝗹𝗼𝗮𝗱 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹!
+                # Update status with success message and stats
+                success_message = f"""🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗖𝗼𝗺𝗽𝗹𝗲𝘁𝗲
 ════════════════
-
-📊 𝗦𝘆𝘀𝘁𝗲𝗺 𝗦𝘁𝗮𝘁𝘂𝘀
-• Active Users: {final_users} ({'+' + str(new_users) if new_users > 0 else new_users})
-• Active Groups: {final_groups} ({'+' + str(new_groups) if new_groups > 0 else new_groups})
-• Total Questions: {final_questions} ({'+' + str(new_questions) if new_questions > 0 else new_questions})
-
-⚡ All systems operational!
+✅ Data reloaded successfully
+📊 Current Stats:
+• Questions: {len(self.quiz_manager.questions)}
+• Active Chats: {len(self.quiz_manager.active_chats)}
+• Users: {len(self.quiz_manager.stats)}
 ════════════════"""
 
-                await status_message.edit_text(success_message, parse_mode=ParseMode.MARKDOWN)
-                logger.info("Full bot reload completed successfully")
+                await status_message.edit_text(
+                    success_message,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.info("Reload completed successfully")
 
             except Exception as e:
-                error_message = f"""❌ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗘𝗿𝗿𝗼𝗿
-════════════════
-Error: {str(e)}
-════════════════"""
-                await status_message.edit_text(error_message, parse_mode=ParseMode.MARKDOWN)
-                logger.error(f"Reload failed: {e}\n{traceback.format_exc()}")
-                raise
+                error_message = (
+                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗦𝘁𝗮𝘁𝘂𝘀\n"
+                    "════════════════\n"
+                    "✅ Current state saved\n"
+                    "❌ Error during reload\n"
+                    "🔧 Auto-recovery initiated\n"
+                    "════════════════"
+                )
+                await status_message.edit_text(
+                    error_message,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.error(f"Error during reload: {str(e)}\n{traceback.format_exc()}")
 
         except Exception as e:
-            logger.error(f"Error in allreload: {e}\n{traceback.format_exc()}")
-            await update.message.reply_text("❌ Critical error during reload.")
-            raise
+            logger.error(f"Critical error in allreload: {str(e)}\n{traceback.format_exc()}")
+            await update.message.reply_text(
+                "❌ Critical error during reload. Please try again.",
+                parse_mode=ParseMode.MARKDOWN
+            )
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Add new quiz(zes) - Developer only"""

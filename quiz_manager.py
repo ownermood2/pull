@@ -64,8 +64,16 @@ class QuizManager:
     def load_data(self):
         """Load all data with proper error handling"""
         try:
+            # Ensure data directory exists
+            os.makedirs("data", exist_ok=True)
+
             # Initialize questions with defaults if file is empty or corrupted
             try:
+                if not os.path.exists(self.questions_file):
+                    with open(self.questions_file, 'w') as f:
+                        json.dump([], f)
+                        logger.info("Created new questions file")
+
                 with open(self.questions_file, 'r') as f:
                     raw_data = json.load(f)
                     if isinstance(raw_data, dict) and 'questions' in raw_data:
@@ -74,15 +82,15 @@ class QuizManager:
                         raw_questions = raw_data
                     else:
                         raw_questions = []
-            except (json.JSONDecodeError, FileNotFoundError):
-                logger.warning("Questions file empty or corrupted, initializing with defaults")
+                        logger.warning("Invalid questions format, using empty list")
+            except (json.JSONDecodeError, FileNotFoundError) as e:
+                logger.warning(f"Questions file error: {e}, initializing with defaults")
                 raw_questions = []
 
             # Clean up existing questions
             self.questions = []
             for q in raw_questions:
                 try:
-                    # Ensure q is a dictionary
                     if not isinstance(q, dict):
                         continue
 
@@ -93,13 +101,12 @@ class QuizManager:
                     if question.startswith('/addquiz'):
                         question = question[len('/addquiz'):].strip()
 
-                    # Ensure correct_answer is zero-based
                     correct_answer = q.get('correct_answer', 0)
                     if isinstance(correct_answer, int) and correct_answer > 0:
                         correct_answer = correct_answer - 1
 
                     options = q.get('options', [])
-                    if len(options) == 4:  # Only add valid questions
+                    if len(options) == 4:
                         self.questions.append({
                             'question': question,
                             'options': options,
@@ -109,32 +116,23 @@ class QuizManager:
                     logger.error(f"Error processing question: {e}")
                     continue
 
-            # Remove invalid questions
-            self.remove_invalidquestions()  # Using the correct method name
+            # Load other data files with proper initialization
+            for file_path, default_value, attr_name in [
+                (self.scores_file, {}, 'scores'),
+                (self.active_chats_file, [], 'active_chats'),
+                (self.stats_file, {}, 'stats')
+            ]:
+                try:
+                    if not os.path.exists(file_path):
+                        with open(file_path, 'w') as f:
+                            json.dump(default_value, f)
+                            logger.info(f"Created new file: {file_path}")
 
-            # Load scores with error handling
-            try:
-                with open(self.scores_file, 'r') as f:
-                    self.scores = json.load(f)
-            except (json.JSONDecodeError, FileNotFoundError):
-                logger.warning("Scores file empty or corrupted, initializing empty")
-                self.scores = {}
-
-            # Load active chats with error handling
-            try:
-                with open(self.active_chats_file, 'r') as f:
-                    self.active_chats = json.load(f)
-            except (json.JSONDecodeError, FileNotFoundError):
-                logger.warning("Active chats file empty or corrupted, initializing empty")
-                self.active_chats = []
-
-            # Load stats with error handling
-            try:
-                with open(self.stats_file, 'r') as f:
-                    self.stats = json.load(f)
-            except (json.JSONDecodeError, FileNotFoundError):
-                logger.warning("Stats file empty or corrupted, initializing empty")
-                self.stats = {}
+                    with open(file_path, 'r') as f:
+                        setattr(self, attr_name, json.load(f))
+                except (json.JSONDecodeError, FileNotFoundError) as e:
+                    logger.warning(f"Error loading {file_path}: {e}, using defaults")
+                    setattr(self, attr_name, default_value)
 
             # Reset tracking structures
             self.recent_questions.clear()
@@ -148,6 +146,7 @@ class QuizManager:
 
             # Force save to ensure clean data
             self.save_data(force=True)
+
             logger.info(f"Successfully loaded and cleaned {len(self.questions)} questions")
             logger.info(f"Active chats: {len(self.active_chats)}")
             logger.info(f"Active users with stats: {len(self.stats)}")
@@ -769,7 +768,7 @@ class QuizManager:
                 return False
 
             # Validate correct_answer is within bounds
-            if not isinstance(question['correct_answer'], int) or not (0 <= question['correctanswer'] < 4):
+            if not isinstance(question['correct_answer'], int) or not (0 <= question['correct_answer'] < 4):
                 return False
 
             return True
