@@ -795,8 +795,8 @@ class QuizManager:
             logger.error(f"Error removing invalid questions: {e}")
             raise
 
-    def clear_all_questions(self):
-        """Remove all questions from the database"""
+    def clear_all_questions(self) -> bool:
+        """Clear all questions from the database"""
         try:
             self.questions = []
             self.save_data(force=True)
@@ -804,7 +804,7 @@ class QuizManager:
             return True
         except Exception as e:
             logger.error(f"Error clearing questions: {e}")
-            raise
+            return False
 
     def reload_data(self):
         """Reload all data while preserving state"""

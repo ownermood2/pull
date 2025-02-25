@@ -746,7 +746,7 @@ class TelegramQuizBot:
             for rank, entry in enumerate(leaderboard[:10], 1):
                 try:
                     #                    # Get user info from Telegram
-                    user = await context.bot.get_chat(entry['user_id'])
+                    user= await context.bot.get_chat(entry['user_id'])
                     username = user.first_name or user.username or "Anonymous"
 
                     # Rank emoji
@@ -1717,7 +1717,7 @@ Please reply to a quiz message or use:
         logger.warning(f"Invalid quiz reply for {command} from user {update.message.from_user.id}")
 
     async def clear_quizzes(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Clear all quizzes from database with confirmation - Developer only"""
+        """Clear all quizzes with confirmation - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
@@ -1726,87 +1726,70 @@ Please reply to a quiz message or use:
             # Create confirmation keyboard
             keyboard = [
                 [
-                    InlineKeyboardButton("✅ Yes", callback_data="clear_quizzes_confirm_yes"),
-                    InlineKeyboardButton("❌ No", callback_data="clear_quizzes_confirm_no")
+                    InlineKeyboardButton("✅ Yes, Clear All", callback_data="clear_quizzes_confirm_yes"),
+                    InlineKeyboardButton("❌ No, Cancel", callback_data="clear_quizzes_confirm_no")
                 ]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             # Send confirmation message
-            confirmation_message = """⚠️ 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
+            await update.message.reply_text(
+                f"""⚠️ 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗤𝘂𝗶𝘇 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
 ════════════════
-Are you sure you want to delete ALL quizzes?
-This action cannot be undone.
+📊 Current Questions: {len(self.quiz_manager.questions)}
 
-• All questions will be removed
-• Quiz history will be cleared
-• Stats will remain intact
+⚠️ This action will:
+• Delete ALL quiz questions
+• Cannot be undone
+• Affect all groups
 
-Please confirm your choice:
-════════════════"""
-
-            # Store original message ID for cleanup
-            sent_message = await update.message.reply_text(
-                confirmation_message,
+Are you sure?
+════════════════""",
                 reply_markup=reply_markup,
                 parse_mode=ParseMode.MARKDOWN
             )
 
-            # Store message IDs for cleanup
-            if 'cleanup_messages' not in context.user_data:
-                context.user_data['cleanup_messages'] = []
-            context.user_data['cleanup_messages'].extend([update.message.message_id, sent_message.message_id])
-
         except Exception as e:
             logger.error(f"Error in clear_quizzes: {e}")
-            await update.message.reply_text("Error starting quiz deletion process.")
+            await update.message.reply_text("Error processing quiz deletion.")
 
     async def handle_clear_quizzes_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle clear quizzes confirmation callback"""
+        """Handle the clear quizzes confirmation callback"""
         try:
-            query = update.callback_query
-            await query.answer()  # Acknowledge the button click
+            query: CallbackQuery = update.callback_query
+            await query.answer()
+
+            if not await self.is_developer(query.from_user.id):
+                await query.edit_message_text("❌ Unauthorized access.")
+                return
 
             if query.data == "clear_quizzes_confirm_yes":
                 # Clear all questions
-                result = self.quiz_manager.clear_all_questions()
+                self.quiz_manager.questions = []
+                self.quiz_manager.save_data(force=True)
 
-                response = f"""📊 𝗤𝘂𝗶𝘇 𝗗𝗮𝘁𝗮𝗯𝗮𝘀𝗲 𝗖𝗹𝗲𝗮𝗿𝗲𝗱
+                await query.edit_message_text(
+                    """✅ 𝗤𝘂𝗶𝘇 𝗗𝗮𝘁𝗮 𝗖𝗹𝗲𝗮𝗿𝗲𝗱
 ════════════════
-• Total Quizzes Removed: {result['initial_count']}
-• Database Status: Clean ✨
-
-✅ Ready to add new quizzes!
+All quiz questions have been deleted.
 Use /addquiz to add new questions.
-════════════════"""
+════════════════""",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.info(f"All quizzes cleared by user {query.from_user.id}")
 
-            else:
-                response = """🔄 𝗢𝗽𝗲𝗿𝗮𝘁𝗶𝗼𝗻 𝗖𝗮𝗻𝗰𝗲𝗹𝗹𝗲𝗱
+            else:  # clear_quizzes_confirm_no
+                await query.edit_message_text(
+                    """❌ 𝗤𝘂𝗶𝘇 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻 𝗖𝗮𝗻𝗰𝗲𝗹𝗹𝗲𝗱
 ════════════════
-Quiz database remains unchanged.
-════════════════"""
-
-            # Edit the confirmation message to show theresult
-
-            # Edit the confirmation message to show the result
-            await query.edit_message_text(
-                text=response,
-                parse_mode=ParseMode.MARKDOWN
-            )
-
-            # Clean up messages after a delay
-            if 'cleanup_messages' in context.user_data:
-                await asyncio.sleep(10)  # Wait 10 seconds
-                for msg_id in context.user_data['cleanup_messages']:
-                    try:
-                        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=msg_id)
-                    except Exception as e:
-                        logger.error(f"Error deleting message {msg_id}: {e}")
-                context.user_data['cleanup_messages'] = []
+No changes were made.
+════════════════""",
+                    parse_mode=ParseMode.MARKDOWN
+                )
 
         except Exception as e:
-            logger.error(f"Error in clear_quizzes callback: {e}")
-            await query.edit_message_text("Error processing quiz deletion.")
+            logger.error(f"Error in handle_clear_quizzes_callback: {e}")
+            await query.edit_message_text("❌ Error processing quiz deletion.")
 
     async def setup_bot(quiz_manager):
         """Setup and start the Telegram bot"""
