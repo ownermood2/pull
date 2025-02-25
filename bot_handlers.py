@@ -237,7 +237,7 @@ class TelegramQuizBot:
 
     async def track_chats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Track when bot is added to or removed from chats"""
-        result = extract_status_change(update.my_chat_member)
+        result = self.extract_status_change(update.my_chat_member)
 
         if result is None:
             return
@@ -416,45 +416,53 @@ class TelegramQuizBot:
             # Check if user is developer
             is_dev = await self.is_developer(update.message.from_user.id)
 
-            help_text = """📝 Commands  
-• /start – Begin quiz journey  
-• /help – Show commands  
-• /category – View Topics
-• /quiz – Try a quiz  
+            help_text = """📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
+════════════════
+🎯 𝗚𝗘𝗡𝗘𝗥𝗔𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
+/start – Begin your quiz journey
+/help – Available commands
+/category – View Topics
+/quiz – Try a quiz demo
 
-📊 Stats & Rankings  
-• /mystats - Your stats 
-• /groupstats – Group stats   
-• /leaderboard – Champions"""
+📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗
+/mystats - Your Performance
+/groupstats – Your group performance
+/leaderboard – See champions"""
 
             # Add developer commands only for developers
             if is_dev:
                 help_text += """
 
-🔒 Developer Commands  
-• /allreload – Bot restart  
-• /addquiz – Add questions
-• /globalstats – Bot stats   
-• /editquiz – Edit quizzes  
-• /broadcast – Send messages
-• /delquiz - Delete quiz
-• /totalquiz - Show quizzes
-• /clear_quizzes - Delete all"""
+🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
+/allreload – Full bot restart
+/addquiz – Add new questions
+/globalstats – Bot stats
+/editquiz – Modify quizzes
+/broadcast – Send announcements
+/delquiz - Delete a quiz
+/totalquiz - Show total quizzes
+/clear_quizzes - Remove all quizzes"""
+
+            help_text += "\n════════════════"
 
             # Send help message with better error handling
             try:
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
                     text=help_text,
-                    parse_mode=None # Don't use markdown parsing
+                    parse_mode=ParseMode.MARKDOWN
                 )
                 logger.info(f"Help message sent to user {update.effective_user.id}")
             except Exception as e:
-                logger.error(f"Failed to send help message: {e}")
-                # Try sending without any formatting
+                logger.error(f"Failed to send help message with markdown: {e}")
+                # Try sending without markdown formatting as fallback
+                plain_text = help_text.replace('𝗖', 'C').replace('𝗚', 'G').replace('𝗦', 'S')\
+                    .replace('𝗟', 'L').replace('𝗗', 'D').replace('𝗠', 'M').replace('𝗘', 'E')\
+                    .replace('═', '=').replace('•', '*')
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text=help_text
+                    text=plain_text,
+                    parse_mode=None
                 )
 
         except Exception as e:
@@ -1604,7 +1612,7 @@ Quiz database remains unchanged.
             raise
 
     def extract_status_change(chat_member_update):
-        """Extract whether bot was added or removed."""
+        """Extract whetherbot was added or removed."""
         try:
             if not chat_member_update or not hasattr(chat_member_update, 'difference'):
                 return None
@@ -1621,5 +1629,19 @@ Quiz database remains unchanged.
 
             return was_member, is_member
         except Exception as e:
-            logger.error(f"Error extracting status change: {e}")
+            logger.error(f"Error in extract_status_change: {e}")
             return None
+
+    async def setup_bot(quiz_manager):
+        """Setup and start the Telegram bot"""
+        logger.info("Setting up Telegram bot...")
+        try:
+            bot = TelegramQuizBot(quiz_manager)
+            token = os.environ.get("TELEGRAM_TOKEN")
+            if not token:
+                raise ValueError("TELEGRAM_TOKEN environment variable is required")
+            await bot.initialize(token)
+            return bot    
+        except Exception as e:
+            logger.error(f"Failed to setup Telegram bot: {e}")
+            raise

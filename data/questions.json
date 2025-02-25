@@ -1,1 +1,1412 @@
-[]
+[
+  {
+    "question": "Who was the founder of the Maurya Empire?",
+    "options": [
+      "Chandragupta Maurya",
+      "Ashoka",
+      "Bindusara",
+      "Harsha"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian Governor-General of independent India?",
+    "options": [
+      "Rajendra Prasad",
+      "C. Rajagopalachari",
+      "B.R. Ambedkar",
+      "Dr. S. Radhakrishnan"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first battle of Panipat was fought between?",
+    "options": [
+      "Babur and Ibrahim Lodi",
+      "Akbar and Hemu",
+      "Marathas and Ahmad Shah Abdali",
+      "British and Marathas"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who introduced the Doctrine of Lapse?",
+    "options": [
+      "Lord Dalhousie",
+      "Lord Canning",
+      "Lord Curzon",
+      "Lord Wellesley"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was known as the \u2018Iron Man of India\u2019?",
+    "options": [
+      "Jawaharlal Nehru",
+      "Sardar Vallabhbhai Patel",
+      "Subhas Chandra Bose",
+      "Bhagat Singh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first woman ruler of India?",
+    "options": [
+      "Razia Sultana",
+      "Rani Lakshmibai",
+      "Ahilyabai Holkar",
+      "Noor Jahan"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who founded the Indian National Army (INA)?",
+    "options": [
+      "Bhagat Singh",
+      "Mahatma Gandhi",
+      "Subhas Chandra Bose",
+      "Sardar Patel"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Mughal Emperor built the Taj Mahal?",
+    "options": [
+      "Babur",
+      "Akbar",
+      "Shah Jahan",
+      "Aurangzeb"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who is known as the \u2018Father of the Indian Constitution\u2019?",
+    "options": [
+      "Jawaharlal Nehru",
+      "B.R. Ambedkar",
+      "Mahatma Gandhi",
+      "Rajendra Prasad"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Jallianwala Bagh massacre took place in which year?",
+    "options": [
+      "1919",
+      "1920",
+      "1931",
+      "1942"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Simon Commission was sent to India in which year?",
+    "options": [
+      "1928",
+      "1919",
+      "1935",
+      "1947"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Quit India Movement was launched in which year?",
+    "options": [
+      "1942",
+      "1930",
+      "1920",
+      "1919"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who gave the slogan \u201cJai Hind\u201d?",
+    "options": [
+      "Mahatma Gandhi",
+      "Jawaharlal Nehru",
+      "Subhas Chandra Bose",
+      "Bhagat Singh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian leader was known as \u2018Lokmanya\u2019?",
+    "options": [
+      "Mahatma Gandhi",
+      "Lala Lajpat Rai",
+      "Bal Gangadhar Tilak",
+      "Sardar Patel"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who led the Revolt of 1857 in Kanpur?",
+    "options": [
+      "Rani Lakshmibai",
+      "Nana Saheb",
+      "Tantia Tope",
+      "Mangal Pandey"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first President of India?",
+    "options": [
+      "Rajendra Prasad",
+      "S. Radhakrishnan",
+      "Dr. B.R. Ambedkar",
+      "Neelam Sanjiva Reddy"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian river is known as the \u2018Sorrow of Bihar\u2019?",
+    "options": [
+      "Ganga",
+      "Yamuna",
+      "Kosi",
+      "Brahmaputra"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The longest river in India is?",
+    "options": [
+      "Yamuna",
+      "Ganga",
+      "Godavari",
+      "Brahmaputra"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the highest mountain peak in India?",
+    "options": [
+      "K2",
+      "Kanchenjunga",
+      "Nanda Devi",
+      "Mount Everest"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Thar Desert is located in which Indian state?",
+    "options": [
+      "Rajasthan",
+      "Gujarat",
+      "Madhya Pradesh",
+      "Maharashtra"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest state in India by area is?",
+    "options": [
+      "Uttar Pradesh",
+      "Rajasthan",
+      "Madhya Pradesh",
+      "Maharashtra"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Sunderbans in India are famous for?",
+    "options": [
+      "Mangrove forests",
+      "Tea Plantations",
+      "Spice Gardens",
+      "Orchards"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The \u2018Black Soil\u2019 in India is best suited for growing?",
+    "options": [
+      "Wheat",
+      "Rice",
+      "Cotton",
+      "Tea"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "India\u2019s largest freshwater lake is?",
+    "options": [
+      "Wular Lake",
+      "Chilika Lake",
+      "Dal Lake",
+      "Loktak Lake"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which state is the largest producer of coffee in India?",
+    "options": [
+      "Kerala",
+      "Karnataka",
+      "Tamil Nadu",
+      "Assam"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Tropic of Cancer passes through how many Indian states?",
+    "options": [
+      "5",
+      "6",
+      "8",
+      "9"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian state has the longest coastline?",
+    "options": [
+      "Maharashtra",
+      "Tamil Nadu",
+      "Gujarat",
+      "Kerala"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The highest dam in India is?",
+    "options": [
+      "Bhakra Nangal Dam",
+      "Hirakud Dam",
+      "Tehri Dam",
+      "Sardar Sarovar Dam"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first bank in India was?",
+    "options": [
+      "Reserve Bank of India",
+      "Bank of Hindustan",
+      "State Bank of India",
+      "Punjab National Bank"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Indian Rupee is issued by?",
+    "options": [
+      "State Bank of India",
+      "Reserve Bank of India",
+      "Ministry of Finance",
+      "NITI Aayog"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest stock exchange in India by trading volume is?",
+    "options": [
+      "Bombay Stock Exchange",
+      "National Stock Exchange",
+      "Calcutta Stock Exchange",
+      "MCX"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest employer in India is?",
+    "options": [
+      "Tata Group",
+      "Reliance Industries",
+      "Indian Railways",
+      "State Bank of India"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest contributor to India's GDP is which sector?",
+    "options": [
+      "Agriculture",
+      "Industry",
+      "Services",
+      "Manufacturing"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first five-year plan in India was launched in?",
+    "options": [
+      "1951",
+      "1947",
+      "1960",
+      "1975"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which organization calculates India\u2019s GDP?",
+    "options": [
+      "NITI Aayog",
+      "Reserve Bank of India",
+      "Central Statistical Office",
+      "SEBI"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest producer of rice in India is?",
+    "options": [
+      "Punjab",
+      "West Bengal",
+      "Uttar Pradesh",
+      "Tamil Nadu"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest producer of wheat in India is?",
+    "options": [
+      "Haryana",
+      "Madhya Pradesh",
+      "Punjab",
+      "Uttar Pradesh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which of the following taxes is an indirect tax?",
+    "options": [
+      "Income Tax",
+      "Corporate Tax",
+      "GST",
+      "Wealth Tax"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The currency of Bangladesh is?",
+    "options": [
+      "Taka",
+      "Rupee",
+      "Dinar",
+      "Kyat"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian state has the highest literacy rate?",
+    "options": [
+      "Tamil Nadu",
+      "Kerala",
+      "Goa",
+      "Maharashtra"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest coal reserve in India is found in?",
+    "options": [
+      "Odisha",
+      "Jharkhand",
+      "West Bengal",
+      "Chhattisgarh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The official language of the Indian government is?",
+    "options": [
+      "Hindi",
+      "English",
+      "Sanskrit",
+      "Tamil"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first Indian to win a Nobel Prize was?",
+    "options": [
+      "Rabindranath Tagore",
+      "C.V. Raman",
+      "Mother Teresa",
+      "Amartya Sen"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Planning Commission of India was replaced by?",
+    "options": [
+      "NITI Aayog",
+      "RBI",
+      "SEBI",
+      "Finance Commission"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Green Revolution in India was associated with?",
+    "options": [
+      "Wheat and Rice",
+      "Fruits and Vegetables",
+      "Cotton and Jute",
+      "Oilseeds and Pulses"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first metro rail system in India started in?",
+    "options": [
+      "Delhi",
+      "Mumbai",
+      "Chennai",
+      "Kolkata"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "India\u2019s first bullet train project is between?",
+    "options": [
+      "Mumbai and Pune",
+      "Delhi and Kolkata",
+      "Mumbai and Ahmedabad",
+      "Chennai and Bangalore"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Prime Minister of India?",
+    "options": [
+      "Jawaharlal Nehru",
+      "Sardar Patel",
+      "Lal Bahadur Shastri",
+      "Indira Gandhi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian leader is known as the \u2018Father of the Nation\u2019?",
+    "options": [
+      "Subhas Chandra Bose",
+      "Sardar Patel",
+      "Mahatma Gandhi",
+      "B.R. Ambedkar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The battle of Plassey was fought in which year?",
+    "options": [
+      "1757",
+      "1764",
+      "1775",
+      "1780"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who wrote the Indian national anthem?",
+    "options": [
+      "Rabindranath Tagore",
+      "Bankim Chandra Chattopadhyay",
+      "Sarojini Naidu",
+      "Subhas Chandra Bose"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The capital of the Maurya Empire was?",
+    "options": [
+      "Delhi",
+      "Pataliputra",
+      "Taxila",
+      "Ujjain"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Mughal ruler introduced Din-i-Ilahi?",
+    "options": [
+      "Babur",
+      "Akbar",
+      "Aurangzeb",
+      "Humayun"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian to win an individual Olympic gold medal?",
+    "options": [
+      "Abhinav Bindra",
+      "Milkha Singh",
+      "P.T. Usha",
+      "Leander Paes"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which movement was launched by Mahatma Gandhi in 1930?",
+    "options": [
+      "Quit India Movement",
+      "Civil Disobedience Movement",
+      "Non-Cooperation Movement",
+      "Swadeshi Movement"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian astronaut to travel in space?",
+    "options": [
+      "Rakesh Sharma",
+      "Kalpana Chawla",
+      "Sunita Williams",
+      "Vikram Sarabhai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Ashoka Chakra in the Indian flag has how many spokes?",
+    "options": [
+      "20",
+      "22",
+      "24",
+      "26"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Second Battle of Panipat was fought between?",
+    "options": [
+      "Babur and Rana Sanga",
+      "Akbar and Hemu",
+      "Marathas and Ahmad Shah Abdali",
+      "British and Marathas"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Kalinga War was fought by which ruler?",
+    "options": [
+      "Chandragupta Maurya",
+      "Ashoka",
+      "Samudragupta",
+      "Bindusara"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Governor-General of British India?",
+    "options": [
+      "Robert Clive",
+      "Lord Cornwallis",
+      "Warren Hastings",
+      "Lord Wellesley"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Indian Mutiny of 1857 started from which place?",
+    "options": [
+      "Delhi",
+      "Kanpur",
+      "Meerut",
+      "Lucknow"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the founder of the Gupta Empire?",
+    "options": [
+      "Samudragupta",
+      "Chandragupta I",
+      "Chandragupta II",
+      "Skandagupta"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first Indian satellite was?",
+    "options": [
+      "INSAT-1A",
+      "Aryabhata",
+      "Bhaskara I",
+      "Rohini"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the founder of the Slave Dynasty?",
+    "options": [
+      "Balban",
+      "Iltutmish",
+      "Qutb-ud-din Aibak",
+      "Alauddin Khilji"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Indian Parliament consists of how many houses?",
+    "options": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Gateway of India is located in?",
+    "options": [
+      "Delhi",
+      "Mumbai",
+      "Kolkata",
+      "Chennai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which city is known as the Silicon Valley of India?",
+    "options": [
+      "Hyderabad",
+      "Chennai",
+      "Pune",
+      "Bengaluru"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Ganga river originates from which place?",
+    "options": [
+      "Amarkantak",
+      "Gangotri Glacier",
+      "Rishikesh",
+      "Haridwar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the largest freshwater lake in India?",
+    "options": [
+      "Dal Lake",
+      "Chilika Lake",
+      "Wular Lake",
+      "Vembanad Lake"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Indian Standard Time (IST) is based on which meridian?",
+    "options": [
+      "75\u00b0E",
+      "82.5\u00b0E",
+      "90\u00b0E",
+      "66\u00b0E"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Great Indian Desert is also known as?",
+    "options": [
+      "Rann of Kutch",
+      "Deccan Desert",
+      "Thar Desert",
+      "Ladakh Desert"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian woman to go to space?",
+    "options": [
+      "Kalpana Chawla",
+      "Sunita Williams",
+      "Rakesh Sharma",
+      "Indira Gandhi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the oldest mountain range in India?",
+    "options": [
+      "Himalayas",
+      "Aravalli",
+      "Western Ghats",
+      "Satpura"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest saltwater lake in India is?",
+    "options": [
+      "Dal Lake",
+      "Chilika Lake",
+      "Wular Lake",
+      "Loktak Lake"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which river is called the \u2018Dakshin Ganga\u2019?",
+    "options": [
+      "Yamuna",
+      "Godavari",
+      "Krishna",
+      "Kaveri"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest producer of tea in India is?",
+    "options": [
+      "Assam",
+      "West Bengal",
+      "Kerala",
+      "Tamil Nadu"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first recipient of the Bharat Ratna award?",
+    "options": [
+      "C.V. Raman",
+      "Dr. S. Radhakrishnan",
+      "Jawaharlal Nehru",
+      "Rajendra Prasad"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first Indian Institute of Technology (IIT) was established in?",
+    "options": [
+      "Delhi",
+      "Mumbai",
+      "Kharagpur",
+      "Kanpur"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The planning commission was replaced by which organization?",
+    "options": [
+      "Finance Commission",
+      "NITI Aayog",
+      "Reserve Bank of India",
+      "Election Commission"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first nuclear test in India was conducted at?",
+    "options": [
+      "Pokhran",
+      "Bengaluru",
+      "Mumbai",
+      "Sriharikota"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The longest national highway in India is?",
+    "options": [
+      "NH 44",
+      "NH 2",
+      "NH 7",
+      "NH 8"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest railway network in India is operated by?",
+    "options": [
+      "Indian Railways",
+      "Delhi Metro",
+      "Konkan Railway",
+      "Eastern Railways"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first bank to be established in India was?",
+    "options": [
+      "State Bank of India",
+      "Punjab National Bank",
+      "Bank of Hindustan",
+      "Reserve Bank of India"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Indus Valley Civilization was discovered in which year?",
+    "options": [
+      "1901",
+      "1921",
+      "1935",
+      "1942"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Indian constitution was adopted on?",
+    "options": [
+      "15 August 1947",
+      "26 January 1950",
+      "26 November 1949",
+      "2 October 1947"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest coal-producing state in India is?",
+    "options": [
+      "Jharkhand",
+      "Odisha",
+      "Chhattisgarh",
+      "West Bengal"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Sundarbans are famous for which animal?",
+    "options": [
+      "Snow Leopard",
+      "Bengal Tiger",
+      "Asiatic Lion",
+      "One-horned Rhinoceros"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian festival is known as the Festival of Lights?",
+    "options": [
+      "Holi",
+      "Diwali",
+      "Dussehra",
+      "Navratri"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The RBI was established in which year?",
+    "options": [
+      "1947",
+      "1935",
+      "1951",
+      "1962"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first newspaper in India was?",
+    "options": [
+      "The Hindu",
+      "The Statesman",
+      "Bengal Gazette",
+      "The Indian Express"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The national song of India is?",
+    "options": [
+      "Jana Gana Mana",
+      "Vande Mataram",
+      "Sare Jahan Se Achha",
+      "Ae Mere Watan Ke Logon"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Ajanta Caves are located in which state?",
+    "options": [
+      "Maharashtra",
+      "Madhya Pradesh",
+      "Karnataka",
+      "Gujarat"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first Indian to receive an Oscar award was?",
+    "options": [
+      "A.R. Rahman",
+      "Satyajit Ray",
+      "Bhanu Athaiya",
+      "Resul Pookutty"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The state with the highest population in India is?",
+    "options": [
+      "Maharashtra",
+      "Uttar Pradesh",
+      "Bihar",
+      "West Bengal"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which institution is responsible for monetary policy in India?",
+    "options": [
+      "SEBI",
+      "RBI",
+      "Finance Ministry",
+      "NITI Aayog"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the full form of GDP?",
+    "options": [
+      "Gross Domestic Policy",
+      "Gross Domestic Product",
+      "General Domestic Production",
+      "Gross Demand Policy"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the largest sector in India's GDP?",
+    "options": [
+      "Agriculture",
+      "Industry",
+      "Services",
+      "Manufacturing"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who presents the Union Budget in India?",
+    "options": [
+      "Prime Minister",
+      "Finance Minister",
+      "RBI Governor",
+      "President"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The term \u2018Inflation\u2019 refers to?",
+    "options": [
+      "Increase in general price levels",
+      "Decrease in demand",
+      "Increase in employment",
+      "Decline in production"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which organization regulates the stock market in India?",
+    "options": [
+      "SEBI",
+      "RBI",
+      "NITI Aayog",
+      "Ministry of Finance"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What does FDI stand for?",
+    "options": [
+      "Foreign Development Index",
+      "Foreign Direct Investment",
+      "Financial Development Initiative",
+      "Fiscal Deficit Indicator"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is India's central bank called?",
+    "options": [
+      "Reserve Bank of India",
+      "State Bank of India",
+      "Indian Monetary Fund",
+      "Finance Ministry"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What does 'Fiscal Deficit' indicate?",
+    "options": [
+      "Excess of revenue over expenditure",
+      "Excess of expenditure over revenue",
+      "Equal revenue and expenditure",
+      "Surplus budget"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the architect of India's Five-Year Plans?",
+    "options": [
+      "Mahatma Gandhi",
+      "Jawaharlal Nehru",
+      "B.R. Ambedkar",
+      "Sardar Patel"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The GST (Goods and Services Tax) was implemented in which year?",
+    "options": [
+      "2016",
+      "2017",
+      "2018",
+      "2019"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which tax was replaced by GST?",
+    "options": [
+      "Income Tax",
+      "Service Tax",
+      "Customs Duty",
+      "None of the above"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the base year for GDP calculation in India?",
+    "options": [
+      "2004-05",
+      "2011-12",
+      "2015-16",
+      "2017-18"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the main source of revenue for the Indian government?",
+    "options": [
+      "Direct Taxes",
+      "Indirect Taxes",
+      "Foreign Aid",
+      "Tourism"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What does PPP stand for in economics?",
+    "options": [
+      "Public Private Partnership",
+      "Purchasing Power Parity",
+      "Profit Percentage Plan",
+      "Production Planning Process"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the full form of NITI Aayog?",
+    "options": [
+      "National Institute for Transforming India",
+      "National Infrastructure for Trade and Investment",
+      "New India Transformation Initiative",
+      "None of the above"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Planning Commission was replaced by NITI Aayog in which year?",
+    "options": [
+      "2014",
+      "2015",
+      "2016",
+      "2017"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What does CRR stand for in banking?",
+    "options": [
+      "Cash Reserve Ratio",
+      "Current Reserve Rate",
+      "Credit Rating Ratio",
+      "Central Reserve Rate"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the function of the Reserve Bank of India?",
+    "options": [
+      "Regulate the stock market",
+      "Issue currency",
+      "Control direct taxes",
+      "Manage trade policies"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who regulates the insurance sector in India?",
+    "options": [
+      "SEBI",
+      "IRDAI",
+      "RBI",
+      "NITI Aayog"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the term for the total value of goods and services produced in a country?",
+    "options": [
+      "GNP",
+      "GDP",
+      "NDP",
+      "NNP"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the largest employer in India?",
+    "options": [
+      "Private Sector",
+      "Public Sector",
+      "Agriculture",
+      "IT Industry"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian state has the highest per capita income?",
+    "options": [
+      "Maharashtra",
+      "Tamil Nadu",
+      "Kerala",
+      "Goa"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is Repo Rate?",
+    "options": [
+      "Rate at which RBI lends to banks",
+      "Rate at which banks lend to customers",
+      "Rate of direct taxation",
+      "None of the above"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the role of NABARD?",
+    "options": [
+      "Regulating share market",
+      "Development of rural banks",
+      "Control inflation",
+      "Monitoring stock market"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which of the following is an example of a direct tax?",
+    "options": [
+      "GST",
+      "Customs Duty",
+      "Income Tax",
+      "Excise Duty"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is India's rank in the world in terms of GDP (Nominal) as of 2023?",
+    "options": [
+      "3rd",
+      "5th",
+      "7th",
+      "9th"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What does MSME stand for?",
+    "options": [
+      "Micro, Small & Medium Enterprises",
+      "Multi Sectoral Market Enterprises",
+      "Macro Small Market Economy",
+      "None of the above"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The headquarters of the RBI is located in which city?",
+    "options": [
+      "Delhi",
+      "Mumbai",
+      "Chennai",
+      "Kolkata"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which bank was nationalized first in India?",
+    "options": [
+      "Punjab National Bank",
+      "State Bank of India",
+      "Bank of India",
+      "Canara Bank"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The term 'Disinvestment' refers to?",
+    "options": [
+      "Selling government shares in public enterprises",
+      "Buying private shares by the government",
+      "Increasing foreign reserves",
+      "None of the above"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which sector employs the most people in India?",
+    "options": [
+      "Industry",
+      "Services",
+      "Agriculture",
+      "Transport"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What does the term 'BOP' stand for?",
+    "options": [
+      "Balance of Production",
+      "Balance of Profit",
+      "Balance of Payments",
+      "Balance of Purchase"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the primary objective of Make in India?",
+    "options": [
+      "Promote foreign imports",
+      "Boost domestic manufacturing",
+      "Increase agricultural output",
+      "Encourage tourism"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first Indian bank was established in which year?",
+    "options": [
+      "1770",
+      "1786",
+      "1800",
+      "1850"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the main function of EXIM Bank?",
+    "options": [
+      "Promote agricultural loans",
+      "Provide industrial loans",
+      "Facilitate export and import financing",
+      "Manage stock exchanges"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the currency of India?",
+    "options": [
+      "Dollar",
+      "Rupee",
+      "Pound",
+      "Yen"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first Industrial Policy of India was announced in which year?",
+    "options": [
+      "1948",
+      "1956",
+      "1991",
+      "2000"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What does 'Devaluation of Currency' mean?",
+    "options": [
+      "Increase in the value of domestic currency",
+      "Decrease in the value of domestic currency",
+      "No change in currency value",
+      "None of the above"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the primary role of the SEBI?",
+    "options": [
+      "Regulating banks",
+      "Regulating stock market",
+      "Managing inflation",
+      "Printing currency"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The concept of Universal Basic Income (UBI) is aimed at?",
+    "options": [
+      "Providing basic income to all citizens",
+      "Promoting banking services",
+      "Increasing export levels",
+      "Reducing public debt"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which ministry prepares the Economic Survey of India?",
+    "options": [
+      "Ministry of Commerce",
+      "Ministry of Finance",
+      "Ministry of External Affairs",
+      "RBI"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest foreign exchange reserve holder in the world is?",
+    "options": [
+      "USA",
+      "China",
+      "India",
+      "Japan"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who appoints the Governor of RBI?",
+    "options": [
+      "President of India",
+      "Finance Minister",
+      "Prime Minister",
+      "Chief Justice of India"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The term 'FDI Cap' refers to?",
+    "options": [
+      "Limit on foreign direct investment in a sector",
+      "Maximum tax on investments",
+      "Interest rates set by RBI",
+      "Government spending limit"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The term \u2018Stagflation\u2019 refers to?",
+    "options": [
+      "High inflation with low growth",
+      "Low inflation with high growth",
+      "No inflation",
+      "None of the above"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which organization releases the Human Development Index (HDI)?",
+    "options": [
+      "IMF",
+      "World Bank",
+      "UNDP",
+      "WTO"
+    ],
+    "correct_answer": 0
+  }
+]

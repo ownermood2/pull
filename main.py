@@ -6,9 +6,8 @@ import signal
 import threading
 import traceback
 from datetime import datetime, timedelta
-from flask import Flask
+from keep_alive import keep_alive_app, start_keep_alive
 from app import app, init_bot
-from keep_alive import start_keep_alive
 import psutil  # Added this import
 
 # Configure logging
@@ -27,30 +26,6 @@ last_restart = datetime.now()
 error_count = 0
 MAX_ERRORS = 3  # More aggressive error threshold
 RESTART_INTERVAL = timedelta(hours=6)  # More frequent restarts
-
-def run_flask():
-    """Run Flask in a separate thread"""
-    try:
-        app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
-    except Exception as e:
-        logger.error(f"Failed to start Flask: {e}")
-        raise
-
-def handle_exception(exc_type, exc_value, exc_traceback):
-    """Global exception handler"""
-    if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-
-    logger.error("Uncaught exception:", exc_info=(exc_type, exc_value, exc_traceback))
-
-    # Force restart on uncaught exceptions
-    os.execv(sys.executable, ['python'] + sys.argv)
-
-def signal_handler(signum, frame):
-    """Handle termination signals"""
-    logger.info(f"Received signal {signum}")
-    raise SystemExit("Received termination signal")
 
 async def health_check():
     """Perform regular health checks"""
@@ -88,12 +63,6 @@ async def main():
         start_keep_alive()
         logger.info("Keep-alive server started")
 
-        # Start Flask in a separate thread
-        flask_thread = threading.Thread(target=run_flask)
-        flask_thread.daemon = True
-        flask_thread.start()
-        logger.info("Flask admin interface started in background thread")
-
         # Initialize and run bot
         logger.info("Starting Telegram bot...")
         bot = await init_bot()
@@ -126,6 +95,20 @@ async def main():
         logger.error(f"Critical error: {e}\n{traceback.format_exc()}")
         await asyncio.sleep(5)
         os.execv(sys.executable, ['python'] + sys.argv)
+
+def signal_handler(signum, frame):
+    """Handle termination signals"""
+    logger.info(f"Received signal {signum}")
+    raise SystemExit("Received termination signal")
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    """Global exception handler"""
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.error("Uncaught exception:", exc_info=(exc_type, exc_value, exc_traceback))
+    os.execv(sys.executable, ['python'] + sys.argv)
 
 if __name__ == "__main__":
     try:

@@ -40,7 +40,7 @@ def health():
 def run():
     """Run Flask server"""
     # Using port 5000 as required by Replit
-    keep_alive_app.run(host='0.0.0.0', port=5000)
+    keep_alive_app.run(host='0.0.0.0', port=5000, use_reloader=False)
 
 def ping_server():
     """Ping server every minute to keep it alive"""
@@ -48,15 +48,14 @@ def ping_server():
     max_failures = 3
     while True:
         try:
+            # Get the Replit URL from environment
+            repl_slug = os.environ.get('REPL_SLUG', '')
+            repl_owner = os.environ.get('REPL_OWNER', '')
+            base_url = f"https://{repl_slug}.{repl_owner}.repl.co"
+
             # Try both endpoints for redundancy
-            response1 = requests.get(
-                f"https://{os.environ['REPL_SLUG']}.{os.environ['REPL_OWNER']}.repl.co/",
-                timeout=30
-            )
-            response2 = requests.get(
-                f"https://{os.environ['REPL_SLUG']}.{os.environ['REPL_OWNER']}.repl.co/health",
-                timeout=30
-            )
+            response1 = requests.get(f"{base_url}/", timeout=30)
+            response2 = requests.get(f"{base_url}/health", timeout=30)
 
             if response1.status_code == 200 and response2.status_code == 200:
                 logger.info("Server pinged successfully")
@@ -126,7 +125,7 @@ def keep_alive():
 
 def start_keep_alive():
     """Start keep-alive with error handling and retries"""
-    max_retries = 5  # Increased from 3 to 5
+    max_retries = 5
     retry_count = 0
     retry_delay = 5  # seconds
 
