@@ -760,7 +760,7 @@ class QuizManager:
     def get_active_chats(self) -> List[int]:
         return self.active_chats
 
-    def cleanup_old_questions(self) -> None:
+    def cleanup_oldquestions(self) -> None:
         """Clean up old questions history and inactive chats"""
         try:
             current_date= datetime.now().strftime('%Y-%m-%d')
@@ -949,26 +949,24 @@ class QuizManager:
             return None
 
     def get_global_statistics(self) -> Dict:
-        """Get comprehensive global statistics with separate user and group tracking"""
+        """Get comprehensive global statistics with accurate user counting"""
         try:
             current_date = datetime.now().strftime('%Y-%m-%d')
             week_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-            month_start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
 
-            # Initialize counters
+            # Initialize stats structure
             stats = {
                 'users': {
                     'total': 0,
                     'active_today': 0,
                     'active_week': 0,
-                    'active_month': 0,
-                    'private_chat': 0
+                    'private_chat': 0,
+                    'group_users': 0
                 },
                 'groups': {
                     'total': len(self.active_chats),
                     'active_today': 0,
-                    'active_week': 0,
-                    'active_month': 0
+                    'active_week': 0
                 },
                 'quizzes': {
                     'total_attempts': 0,
@@ -978,21 +976,23 @@ class QuizManager:
                 },
                 'performance': {
                     'success_rate': 0,
-                    'avg_score': 0,
                     'questions_available': len(self.questions)
                 }
             }
 
+            # Get all group members
+            group_users = set()
+            private_users = set()
+            for chat_id in self.active_chats:
+                members = self.get_group_members(str(chat_id))
+                group_users.update(members)
+
             # Process user statistics
             for user_id, user_stats in self.stats.items():
-                # Count total unique users
-                stats['users']['total'] += 1
-
                 # Track private chat users
-                if 'private_chat_activity' in user_stats:
-                    private_chat = user_stats['private_chat_activity']
-                    if private_chat.get('total_messages', 0) > 0:
-                        stats['users']['private_chat'] += 1
+                if 'private_chat_activity' in user_stats and user_stats['private_chat_activity'].get('total_messages', 0) > 0:
+                    private_users.add(user_id)
+                    stats['users']['private_chat'] += 1
 
                 # Track activity periods
                 last_active = user_stats.get('last_activity_date')
@@ -1001,82 +1001,62 @@ class QuizManager:
                         stats['users']['active_today'] += 1
                     if last_active >= week_start:
                         stats['users']['active_week'] += 1
-                    if last_active >= month_start:
-                        stats['users']['active_month'] += 1
 
                 # Track quiz performance
                 stats['quizzes']['total_attempts'] += user_stats.get('total_quizzes', 0)
                 stats['quizzes']['correct_answers'] += user_stats.get('correct_answers', 0)
 
-                # Track today's and week's attempts
-                daily_activity = user_stats.get('daily_activity', {})
-                if current_date in daily_activity:
-                    stats['quizzes']['today_attempts'] += daily_activity[current_date].get('attempts', 0)
+                # Track today's attempts
+                today_activity = user_stats.get('daily_activity', {}).get(current_date, {})
+                stats['quizzes']['today_attempts'] += today_activity.get('attempts', 0)
 
-                week_attempts = sum(
+                # Track week's attempts
+                stats['quizzes']['week_attempts'] += sum(
                     day_stats.get('attempts', 0)
-                    for date, day_stats in daily_activity.items()
+                    for date, day_stats in user_stats.get('daily_activity', {}).items()
                     if date >= week_start
                 )
-                stats['quizzes']['week_attempts'] += week_attempts
 
-            # Process group statistics
+            # Update group activity
             for chat_id in self.active_chats:
                 chat_id_str = str(chat_id)
                 last_activity = self.get_group_last_activity(chat_id_str)
-
                 if last_activity:
                     if last_activity == current_date:
                         stats['groups']['active_today'] += 1
                     if last_activity >= week_start:
                         stats['groups']['active_week'] += 1
-                    if last_activity >= month_start:
-                        stats['groups']['active_month'] += 1
 
-            # Calculate performance metrics
-            total_attempts = stats['quizzes']['total_attempts']
-            if total_attempts > 0:
+            # Calculate final user counts
+            all_users = group_users.union(private_users)
+            stats['users']['total'] = len(all_users)
+            stats['users']['group_users'] = len(group_users)
+
+            # Calculate success rate
+            if stats['quizzes']['total_attempts'] > 0:
                 stats['performance']['success_rate'] = round(
-                    (stats['quizzes']['correct_answers'] / total_attempts) * 100, 1
-                )
-                stats['performance']['avg_score'] = round(
-                    stats['quizzes']['correct_answers'] / stats['users']['total'], 1
+                    (stats['quizzes']['correct_answers'] / stats['quizzes']['total_attempts']) * 100, 1
                 )
 
+            logger.info(f"Global stats generated: {stats}")
             return stats
 
         except Exception as e:
             logger.error(f"Error getting global statistics: {e}\n{traceback.format_exc()}")
-            return {}
+            return {
+                'users': {'total': 0, 'active_today': 0, 'active_week': 0, 'private_chat': 0, 'group_users': 0},
+                'groups': {'total': 0, 'active_today': 0, 'active_week': 0},
+                'quizzes': {'total_attempts': 0, 'correct_answers': 0, 'today_attempts': 0, 'week_attempts': 0},
+                'performance': {'success_rate': 0, 'questions_available': 0}
+            }
 
-    def cleanup_old_questions(self):
-        """Cleanup old question history periodically"""
-        try:
-            current_time = datetime.now()
-            cutoff_time = current_time - timedelta(hours=24)
-
-            for chat_id in list(self.recent_questions.keys()):
-                # Clear tracking for inactive chats
-                if not self.recent_questions[chat_id]:
-                    del self.recent_questions[chat_id]
-                    if chat_id in self.last_question_time:
-                        del self.last_question_time[chat_id]
-                    if chat_id in self.available_questions:
-                        del self.available_questions[chat_id]
-                    continue
-
-                # Remove old question timestamps
-                if chat_id in self.last_question_time:
-                    old_questions = [
-                        q for q, t in self.last_question_time[chat_id].items()
-                        if t < cutoff_time
-                    ]
-                    for q in old_questions:
-                        del self.last_question_time[chat_id][q]
-
-            logger.info("Completed cleanup of old questions history")
-        except Exception as e:
-            logger.error(f"Error in cleanup_old_questions: {e}")
+    def get_group_members(self, chat_id: str) -> set:
+        """Get all members who have participated in a group"""
+        members = set()
+        for user_id, stats in self.stats.items():
+            if 'groups' in stats and chat_id in stats['groups']:
+                members.add(user_id)
+        return members
 
     def track_user_activity(self, user_id: int, chat_id: int) -> None:
         """Track user activity in real-time"""
@@ -1204,3 +1184,32 @@ class QuizManager:
 
         except Exception as e:
             logger.error(f"Error updating all stats: {e}")
+
+    def cleanup_old_questions(self):
+        """Cleanup old question history periodically"""
+        try:
+            current_time = datetime.now()
+            cutoff_time = current_time - timedelta(hours=24)
+
+            for chat_id in list(self.recent_questions.keys()):
+                # Clear tracking for inactive chats
+                if not self.recent_questions[chat_id]:
+                    del self.recent_questions[chat_id]
+                    if chat_id in self.last_question_time:
+                        del self.last_question_time[chat_id]
+                    if chat_id in self.available_questions:
+                        del self.available_questions[chat_id]
+                    continue
+
+                # Remove old question timestamps
+                if chat_id in self.last_question_time:
+                    old_questions = [
+                        q for q, t in self.last_question_time[chat_id].items()
+                        if t < cutoff_time
+                    ]
+                    for q in old_questions:
+                        del self.last_question_time[chat_id][q]
+
+            logger.info("Completed cleanup of old questions history")
+        except Exception as e:
+            logger.error(f"Error in cleanup_old_questions: {e}")

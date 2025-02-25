@@ -4,6 +4,7 @@ import traceback
 import asyncio
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
+from typing import List
 from telegram import Update, Poll, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from telegram.ext import (
     Application,
@@ -255,6 +256,22 @@ class TelegramQuizBot:
 
         except Exception as e:
             logger.error(f"Error in track_chats: {e}")
+
+    async def _delete_messages_after_delay(self, chat_id: int, message_ids: List[int], delay: int = 5) -> None:
+        """Delete messages after specified delay in seconds"""
+        try:
+            await asyncio.sleep(delay)
+            for message_id in message_ids:
+                try:
+                    await self.application.bot.delete_message(
+                        chat_id=chat_id,
+                        message_id=message_id
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to delete message {message_id} in chat {chat_id}: {e}")
+                    continue
+        except Exception as e:
+            logger.error(f"Error in _delete_messages_after_delay: {e}")
 
     async def send_welcome_message(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send unified welcome message when bot joins a group or starts in private chat"""
@@ -685,12 +702,13 @@ class TelegramQuizBot:
             await update.message.reply_text("❌ Error retrieving global statistics. Please try again.")
 
     async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Enhanced reload functionality with proper instance management"""
+        """Enhanced reload functionality with proper instance management and auto-cleanup"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
 
+            # Send initial status message
             status_message = await update.message.reply_text(
                 "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n⏳ Saving current state...",
                 parse_mode=ParseMode.MARKDOWN
@@ -711,7 +729,7 @@ class TelegramQuizBot:
                 current_chats = set(self.quiz_manager.get_active_chats())
                 discovered_chats = set()
 
-                # Use existing bot instance to get chat members
+                # Scan existing chats
                 async def scan_chat(chat_id):
                     try:
                         chat = await context.bot.get_chat(chat_id)
@@ -721,65 +739,70 @@ class TelegramQuizBot:
                     except Exception as e:
                         logger.warning(f"Could not scan chat {chat_id}: {e}")
 
-                # Scan existing chats
-                scan_tasks = []
-                for chat_id in current_chats:
-                    scan_tasks.append(scan_chat(chat_id))
-
                 # Execute all scans concurrently
+                scan_tasks = [scan_chat(chat_id) for chat_id in current_chats]
                 await asyncio.gather(*scan_tasks, return_exceptions=True)
 
                 # Update active chats
-                for chat_id in discovered_chats - current_chats:
+                new_chats = discovered_chats - current_chats
+                removed_chats = current_chats - discovered_chats
+
+                for chat_id in new_chats:
                     self.quiz_manager.add_active_chat(chat_id)
 
-                # Clean up inactive chats
-                for chat_id in current_chats - discovered_chats:
+                for chat_id in removed_chats:
                     self.quiz_manager.remove_active_chat(chat_id)
 
                 # Reload data and update stats
                 self.quiz_manager.load_data()
                 self.quiz_manager.update_all_stats()
 
-                # Get updated metrics
-                active_users = len(self.quiz_manager.get_active_users())
-                total_questions = len(self.quiz_manager.questions)
-                current_date = datetime.now().strftime('%Y-%m-%d')
+                # Get updated stats
+                stats = self.quiz_manager.get_global_statistics()
                 
-                # Send comprehensive success message
+                # Send success message
                 success_message = f"""✅ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗖𝗼𝗺𝗽𝗹𝗲𝘁𝗲
 ════════════════
 📊 𝗦𝘁𝗮𝘁𝘂𝘀:
-• Active Chats: {len(discovered_chats)}
-• New Chats Added: {len(discovered_chats - current_chats)}
-• Inactive Removed: {len(current_chats - discovered_chats)}
-• Active Users: {active_users}
-• Questions Loaded: {total_questions}
+• Active Chats: {len(discovered_chats):,}
+• Users Tracked: {stats['users']['total']:,}
+• Questions: {stats['performance']['questions_available']:,}
 • Stats Updated: ✅
-
-✨ All systems operational!
-════════════════"""
+════════════════
+🔄 Auto-deleting in 5s..."""
 
                 await status_message.edit_text(
                     success_message,
                     parse_mode=ParseMode.MARKDOWN
                 )
-                logger.info("Reload completed successfully")
+
+                # Schedule deletion for both command and status messages in groups
+                if update.message.chat.type != "private":
+                    asyncio.create_task(self._delete_messages_after_delay(
+                        chat_id=update.message.chat_id,
+                        message_ids=[update.message.message_id, status_message.message_id],
+                        delay=5
+                    ))
 
                 # Schedule quiz delivery for active chats
                 await self.send_automated_quiz(context)
+                logger.info("Reload completed successfully")
 
             except Exception as e:
                 error_message = f"""❌ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗘𝗿𝗿𝗼𝗿
 ════════════════
 Error: {str(e)}
 ════════════════"""
-                await status_message.edit_text(error_message, parse_mode=ParseMode.MARKDOWN)
-                logger.error(f"Reload failed: {e}\n{traceback.format_exc()}")
+                await status_message.edit_text(
+                    error_message,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.error(f"Error during reload: {e}\n{traceback.format_exc()}")
+                raise
 
         except Exception as e:
             logger.error(f"Error in allreload: {e}\n{traceback.format_exc()}")
-            await update.message.reply_text("❌ Critical error during reload.")
+            await update.message.reply_text("❌ Error during reload. Please try again.")
 
     async def leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show global leaderboard with top 10 performers"""
@@ -1181,46 +1204,63 @@ Failed to display quizzes. Please try again later.
         return user_id in DEVELOPER_IDS
 
     async def broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send announcements - Developer only"""
+        """Send broadcast message to all chats - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Get message to broadcast
-            try:
-                message = update.message.text.split(" ", 1)[1]
-            except IndexError:
-                await update.message.reply_text(
-                    "❌ Please provide a message to broadcast.\n"
-                    "Format: /broadcast Your message here", parse_mode=ParseMode.MARKDOWN
-                )
+            # Get broadcast message
+            message_text = update.message.text.replace('/broadcast', '', 1).strip()
+            if not message_text:
+                await update.message.reply_text("❌ Please provide a message to broadcast.")
                 return
 
+            # Format broadcast message
+            broadcast_message = f"""📢 𝗔𝗻𝗻𝗼𝘂𝗻𝗰𝗲𝗺𝗲𝗻𝘁
+════════════════
+
+{message_text}"""
+
+            # Get all active chats
             active_chats = self.quiz_manager.get_active_chats()
             success_count = 0
-            fail_count =0
-            # Send to all active chats
+            failed_count = 0
+            
+            # Send to all chats
             for chat_id in active_chats:
                 try:
                     await context.bot.send_message(
                         chat_id=chat_id,
-                        text=f"📢 𝗔𝗻𝗻𝗼𝘂𝗻𝗰𝗲𝗺𝗲𝗻𝘁\n════════════════\n\n{message}", parse_mode=ParseMode.MARKDOWN
+                        text=broadcast_message,
+                        parse_mode=ParseMode.MARKDOWN
                     )
                     success_count += 1
+                    await asyncio.sleep(0.1)  # Prevent flooding
                 except Exception as e:
+                    failed_count += 1
                     logger.error(f"Failed to send broadcast to {chat_id}: {e}")
-                    fail_count += 1
 
-            await update.message.reply_text(
-                f"📢 Broadcast Results:\n"
-                f"✅ Successfully sent to: {success_count} chats\n"
-                f"❌ Failed to send to: {fail_count} chats", parse_mode=ParseMode.MARKDOWN
-            )
+            # Send results
+            results = f"""📢 Broadcast Results:
+✅ Successfully sent to: {success_count} chats
+❌ Failed to send to: {failed_count} chats"""
+
+            result_msg = await update.message.reply_text(results)
+
+            # Auto-delete command and result in groups
+            if update.message.chat.type != "private":
+                asyncio.create_task(self._delete_messages_after_delay(
+                    chat_id=update.message.chat_id,
+                    message_ids=[update.message.message_id, result_msg.message_id],
+                    delay=5
+                ))
+
+            logger.info(f"Broadcast completed: {success_count} successful, {failed_count} failed")
 
         except Exception as e:
             logger.error(f"Error in broadcast: {e}")
-            await update.message.reply_text("❌ Error sending broadcast.")
+            await update.message.reply_text("❌ Error sending broadcast. Please try again.")
 
     async def check_admin_status(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """Check if bot is admin in the chat"""
