@@ -139,21 +139,7 @@ class TelegramQuizBot:
             active_chats = self.quiz_manager.get_active_chats()
             for chat_id in active_chats:
                 try:
-                    # Get bot messages older than 2 hours
-                    messages_to_delete = []
-                    async for message in context.bot.get_chat_history(chat_id, limit=100):
-                        if (message.from_user.id == context.bot.id and
-                            (datetime.now() - message.date).total_seconds() > 7200):  # 2 hours
-                            messages_to_delete.append(message.message_id)
-
-                    # Delete old messages
-                    for msg_id in messages_to_delete:
-                        try:
-                            await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                        except Exception:
-                            continue
-
-                    logger.info(f"Cleaned {len(messages_to_delete)} old messages from chat {chat_id}")
+                    await self.cleanup_old_messages(chat_id, context)
                 except Exception as e:
                     logger.error(f"Error cleaning messages in chat {chat_id}: {e}")
 
@@ -200,10 +186,10 @@ class TelegramQuizBot:
                 pattern="^clear_quizzes_confirm_(yes|no)$"
             ))
 
-            # Schedule automated quiz job
+            # Schedule automated quiz job - every 20 minutes
             self.application.job_queue.run_repeating(
                 self.send_automated_quiz,
-                interval=1200,  # 20 minutes in seconds
+                interval=1200,  # 20 minutes
                 first=10  # Start first quiz after 10 seconds
             )
 
@@ -211,7 +197,7 @@ class TelegramQuizBot:
             self.application.job_queue.run_repeating(
                 self.scheduled_cleanup,
                 interval=3600,  # Every hour
-                first=300
+                first=300  # Start first cleanup after 5 minutes
             )
             self.application.job_queue.run_repeating(
                 self.cleanup_old_polls,
@@ -222,7 +208,7 @@ class TelegramQuizBot:
             self.application.job_queue.run_repeating(
                 lambda context: self.quiz_manager.cleanup_old_questions(),
                 interval=3600,  # Every hour
-                first=600
+                first=600  # Start after 10 minutes
             )
 
             await self.application.initialize()
@@ -236,26 +222,39 @@ class TelegramQuizBot:
             raise
 
     async def track_chats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Track when bot is added to or removed from chats"""
-        result = self.extract_status_change(update.my_chat_member)
+        """Enhanced tracking when bot is added to or removed from chats"""
+        try:
+            chat = update.effective_chat
+            if not chat:
+                return
 
-        if result is None:
-            return
+            result = self.extract_status_change(update.my_chat_member)
+            if result is None:
+                return
 
-        was_member, is_member = result
+            was_member, is_member = result
 
-        # Handle chat type
-        chat = update.effective_chat
-        if chat.type in ["group", "supergroup"]:
-            if not was_member and is_member:
-                # Bot was added to a group
-                self.quiz_manager.add_active_chat(chat.id)
-                await self.send_welcome_message(chat.id, context)
-                logger.info(f"Bot added to group {chat.title} ({chat.id})")
-            elif was_member and not is_member:
-                # Bot was removed from a group
-                self.quiz_manager.remove_active_chat(chat.id)
-                logger.info(f"Bot removed from group {chat.title} ({chat.id})")
+            if chat.type in ["group", "supergroup"]:
+                if not was_member and is_member:
+                    # Bot was added to a group
+                    self.quiz_manager.add_active_chat(chat.id)
+                    await self.send_welcome_message(chat.id, context)
+
+                    # Schedule first quiz delivery
+                    if await self.check_admin_status(chat.id, context):
+                        await self.send_quiz(chat.id, context)
+                    else:
+                        await self.send_admin_reminder(chat.id, context)
+
+                    logger.info(f"Bot added to group {chat.title} ({chat.id})")
+
+                elif was_member and not is_member:
+                    # Bot was removed from a group
+                    self.quiz_manager.remove_active_chat(chat.id)
+                    logger.info(f"Bot removed from group {chat.title} ({chat.id})")
+
+        except Exception as e:
+            logger.error(f"Error in track_chats: {e}")
 
     async def send_welcome_message(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send welcome message when bot joins a group"""
@@ -493,7 +492,6 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error showing categories: {e}")
             await update.message.reply_text("Error showing categories.")
-
 
 
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -788,13 +786,12 @@ class TelegramQuizBot:
             await update.message.reply_text("❌ Error retrieving leaderboard. Please try again.")
 
     async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Reload all data and restart bot - Developer only"""
+        """Enhanced reload functionality"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Send initial status
             status_message = await update.message.reply_text(
                 "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n⏳ Saving current state...",
                 parse_mode=ParseMode.MARKDOWN
@@ -803,22 +800,39 @@ class TelegramQuizBot:
             try:
                 # Save current state
                 self.quiz_manager.save_data(force=True)
+
+                # Update status
                 await status_message.edit_text(
-                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n✅ Current state saved\n⏳ Reloading database...",
+                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n✅ Current state saved\n⏳ Scanning for new chats...",
                     parse_mode=ParseMode.MARKDOWN
                 )
+
+                # Get all chats the bot is in
+                bot_chats = set()
+                async for chat in context.bot.get_updates():
+                    if chat.effective_chat:
+                        bot_chats.add(chat.effective_chat.id)
+
+                # Add missing chats to active_chats
+                current_chats = set(self.quiz_manager.get_active_chats())
+                new_chats = bot_chats - current_chats
+
+                for chat_id in new_chats:
+                    self.quiz_manager.add_active_chat(chat_id)
 
                 # Reload data
                 self.quiz_manager.load_data()
 
-                # Update status with success message and stats
-                success_message = f"""🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗖𝗼𝗺𝗽𝗹𝗲𝘁𝗲
+                # Send success message
+                success_message = f"""✅ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗖𝗼𝗺𝗽𝗹𝗲𝘁𝗲
 ════════════════
-✅ Data reloaded successfully
-📊 Current Stats:
-• Questions: {len(self.quiz_manager.questions)}
-• Active Chats: {len(self.quiz_manager.active_chats)}
-• Users: {len(self.quiz_manager.stats)}
+📊 𝗦𝘁𝗮𝘁𝘂𝘀:
+• New Chats Found: {len(new_chats)}
+• Total Active Chats: {len(self.quiz_manager.get_active_chats())}
+• Questions Loaded: {len(self.quiz_manager.questions)}
+• Users in Database: {len(self.quiz_manager.stats)}
+
+✨ All systems operational!
 ════════════════"""
 
                 await status_message.edit_text(
@@ -827,27 +841,20 @@ class TelegramQuizBot:
                 )
                 logger.info("Reload completed successfully")
 
+                # Send new quiz to all active chats
+                await self.send_automated_quiz(context)
+
             except Exception as e:
-                error_message = (
-                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗦𝘁𝗮𝘁𝘂𝘀\n"
-                    "════════════════\n"
-                    "✅ Current state saved\n"
-                    "❌ Error during reload\n"
-                    "🔧 Auto-recovery initiated\n"
-                    "════════════════"
-                )
-                await status_message.edit_text(
-                    error_message,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                logger.error(f"Error during reload: {str(e)}\n{traceback.format_exc()}")
+                error_message = f"""❌ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗘𝗿𝗿𝗼𝗿
+════════════════
+Error: {str(e)}
+════════════════"""
+                await status_message.edit_text(error_message, parse_mode=ParseMode.MARKDOWN)
+                logger.error(f"Reload failed: {e}\n{traceback.format_exc()}")
 
         except Exception as e:
-            logger.error(f"Critical error in allreload: {str(e)}\n{traceback.format_exc()}")
-            await update.message.reply_text(
-                "❌ Critical error during reload. Please try again.",
-                parse_mode=ParseMode.MARKDOWN
-            )
+            logger.error(f"Error in allreload: {e}\n{traceback.format_exc()}")
+            await update.message.reply_text("❌ Critical error during reload.")
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Add new quiz(zes) - Developer only"""
@@ -1838,4 +1845,176 @@ No changes were made.
             return bot    
         except Exception as e:
             logger.error(f"Failed to setup Telegram bot: {e}")
+            raise
+
+    async def cleanup_old_messages(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Clean up old messages from the chat"""
+        try:
+            # Get messages older than 2 hours
+            cutoff_time = datetime.now() - timedelta(hours=2)
+
+            async for message in context.bot.get_chat_history(chat_id, limit=100):
+                if message.from_user.id == context.bot.id:
+                    msg_time = message.date.replace(tzinfo=None)
+                    if msg_time < cutoff_time:
+                        try:
+                            await context.bot.delete_message(
+                                chat_id=chat_id,
+                                message_id=message.message_id
+                            )
+                        except Exception as e:
+                            logger.error(f"Error deleting message {message.message_id}: {e}")
+                            continue
+
+            logger.info(f"Cleaned up old messages in chat {chat_id}")
+
+        except Exception as e:
+            logger.error(f"Error cleaning up messages: {e}")
+
+    async def send_automated_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Send automated quiz to all active groups"""
+        try:
+            active_chats = self.quiz_manager.get_active_chats()
+            for chat_id in active_chats:
+                try:
+                    # Check if bot is admin
+                    is_admin = await self.check_admin_status(chat_id, context)
+
+                    if is_admin:
+                        # Delete previous quiz if exists
+                        try:
+                            chat_history = self.command_history.get(chat_id, [])
+                            if chat_history:
+                                last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
+                                if last_quiz:
+                                    msg_id = int(last_quiz.split("_")[1])
+                                    await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+                                    logger.info(f"Deleted previous quiz in chat {chat_id}")
+                        except Exception as e:
+                            logger.warning(f"Failed to delete previous quiz: {e}")
+
+                        # Send new quiz
+                        await self.send_quiz(chat_id, context)
+                        logger.info(f"Sent automated quiz to chat {chat_id}")
+                    else:
+                        # Send admin reminder if not admin
+                        await self.send_admin_reminder(chat_id, context)
+                        logger.info(f"Sent admin reminder to chat {chat_id}")
+
+                except Exception as e:
+                    logger.error(f"Error processing chat {chat_id}: {e}")
+                    continue
+
+        except Exception as e:
+            logger.error(f"Error in automated quiz: {e}")
+
+    async def track_chats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Enhanced tracking when bot is added to or removed from chats"""
+        try:
+            chat = update.effective_chat
+            if not chat:
+                return
+
+            result = self.extract_status_change(update.my_chat_member)
+            if result is None:
+                return
+
+            was_member, is_member = result
+
+            if chat.type in ["group", "supergroup"]:
+                if not was_member and is_member:
+                    # Bot was added to a group
+                    self.quiz_manager.add_active_chat(chat.id)
+                    await self.send_welcome_message(chat.id, context)
+
+                    # Schedule first quiz delivery
+                    if await self.check_admin_status(chat.id, context):
+                        await self.send_quiz(chat.id, context)
+                    else:
+                        await self.send_admin_reminder(chat.id, context)
+
+                    logger.info(f"Bot added to group {chat.title} ({chat.id})")
+
+                elif was_member and not is_member:
+                    # Bot was removed from a group
+                    self.quiz_manager.remove_active_chat(chat.id)
+                    logger.info(f"Bot removed from group {chat.title} ({chat.id})")
+
+        except Exception as e:
+            logger.error(f"Error in track_chats: {e}")
+
+    async def initialize(self, token: str):
+        """Enhanced initialization with automated tasks"""
+        try:
+            # Build application
+            self.application = (
+                Application.builder()
+                .token(token)
+                .build()
+            )
+
+            # Add handlers
+            self.application.add_handler(CommandHandler("start", self.start))
+            self.application.add_handler(CommandHandler("help", self.help))
+            self.application.add_handler(CommandHandler("quiz", self.quiz_command))
+            self.application.add_handler(CommandHandler("category", self.category))
+            self.application.add_handler(CommandHandler("mystats", self.mystats))
+            self.application.add_handler(CommandHandler("groupstats", self.groupstats))
+            self.application.add_handler(CommandHandler("leaderboard", self.leaderboard))
+
+            # Developer commands
+            self.application.add_handler(CommandHandler("allreload", self.allreload))
+            self.application.add_handler(CommandHandler("addquiz", self.addquiz))
+            self.application.add_handler(CommandHandler("globalstats", self.globalstats))
+            self.application.add_handler(CommandHandler("editquiz", self.editquiz))
+            self.application.add_handler(CommandHandler("delquiz", self.delquiz))
+            self.application.add_handler(CommandHandler("delquiz_confirm", self.delquiz_confirm))
+            self.application.add_handler(CommandHandler("broadcast", self.broadcast))
+            self.application.add_handler(CommandHandler("totalquiz", self.totalquiz))
+            self.application.add_handler(CommandHandler("clear_quizzes", self.clear_quizzes))
+
+            # Handle answers and chat member updates
+            self.application.add_handler(PollAnswerHandler(self.handle_answer))
+            self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+
+            # Add callback query handler for clear_quizzes confirmation
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_clear_quizzes_callback,
+                pattern="^clear_quizzes_confirm_(yes|no)$"
+            ))
+
+            # Schedule automated quiz job - every 20 minutes
+            self.application.job_queue.run_repeating(
+                self.send_automated_quiz,
+                interval=1200,  # 20 minutes
+                first=10  # Start first quiz after 10 seconds
+            )
+
+            # Schedule cleanup jobs
+            self.application.job_queue.run_repeating(
+                self.scheduled_cleanup,
+                interval=3600,  # Every hour
+                first=300  # Start first cleanup after 5 minutes
+            )
+
+            # Add question history cleanup job
+            self.application.job_queue.run_repeating(
+                lambda context: self.quiz_manager.cleanup_old_questions(),
+                interval=3600,  # Every hour
+                first=600  # Start after 10 minutes
+            )
+            self.application.job_queue.run_repeating(
+                self.cleanup_old_polls,
+                interval=3600, #Every Hour
+                first=300
+            )
+
+            await self.application.initialize()
+            await self.application.start()
+            await self.application.updater.start_polling()
+
+            return self
+
+        except Exception as e:
+            logger.error(f"Failed to initialize bot: {e}")
             raise
