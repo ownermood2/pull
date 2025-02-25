@@ -755,7 +755,7 @@ Use /help to see all available commands! 🎮"""
                 return
 
             active_chats = self.quiz_manager.get_active_chats()
-            total_users = len(self.quizmanager.stats)
+            total_users = len(self.quiz_manager.stats)  # Fixed variable name
             total_groups = len(active_chats)
 
             # Calculate active users and groups today
@@ -1595,8 +1595,7 @@ Quiz database remains unchanged.
                 await asyncio.sleep(10)  # Wait 10 seconds
                 for msg_id in context.user_data['cleanup_messages']:
                     try:
-                        await context.bot.delete_message(chat_id=update.effective_chat.id,
-                        message_id=msg_id)
+                        await context.bot.delete_message(chat_id=update.effective_chat.id,                                    message_id=msg_id)
                     except Exception as e:
                         logger.error(f"Error deleting message {msg_id}: {e}")
                 context.user_data['cleanup_messages'] = []

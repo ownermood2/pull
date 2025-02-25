@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from flask import Flask
 from app import app, init_bot
 from keep_alive import start_keep_alive
-import psutil # Added this import
+import psutil  # Added this import
 
 # Configure logging
 logging.basicConfig(
@@ -57,7 +57,6 @@ async def health_check():
     while True:
         try:
             # Check memory usage
-            import psutil
             process = psutil.Process(os.getpid())
             memory_usage = process.memory_info().rss / 1024 / 1024  # MB
 

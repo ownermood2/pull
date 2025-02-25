@@ -39,7 +39,8 @@ def health():
 
 def run():
     """Run Flask server"""
-    keep_alive_app.run(host='0.0.0.0', port=8080)
+    # Using port 5000 as required by Replit
+    keep_alive_app.run(host='0.0.0.0', port=5000)
 
 def ping_server():
     """Ping server every minute to keep it alive"""
