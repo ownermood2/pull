@@ -456,9 +456,7 @@ class TelegramQuizBot:
             except Exception as e:
                 logger.error(f"Failed to send help message with markdown: {e}")
                 # Try sending without markdown formatting as fallback
-                plain_text = help_text.replace('𝗖', 'C').replace('𝗚', 'G').replace('𝗦', 'S')\
-                    .replace('𝗟', 'L').replace('𝗗', 'D').replace('𝗠', 'M').replace('𝗘', 'E')\
-                    .replace('═', '=').replace('•', '*')
+                plain_text = help_text.replace('𝗖', 'C').replace('𝗚', 'G').replace('𝗦', 'S').replace('𝗟', 'L').replace('𝗗', 'D').replace('𝗠', 'M').replace('𝗘', 'E').replace('═', '=').replace('•', '*')
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
                     text=plain_text,
@@ -555,8 +553,7 @@ class TelegramQuizBot:
             except Exception as e:
                 logger.error(f"Failed to send stats with markdown: {e}")
                 # Fallback to plain text if markdown fails
-                plain_text = stats_message.replace('𝗤', 'Q').replace('𝗠', 'M').replace('𝗣', 'P')\
-                    .replace('𝗦', 'S').replace('𝗔', 'A').replace('═', '=').replace('•', '*')
+                plain_text = stats_message.replace('𝗤', 'Q').replace('𝗠', 'M').replace('𝗣', 'P').replace('𝗦', 'S').replace('𝗔', 'A').replace('═', '=').replace('•', '*')
                 await update.message.reply_text(plain_text)
 
         except Exception as e:
@@ -621,8 +618,7 @@ class TelegramQuizBot:
             except Exception as e:
                 logger.error(f"Failed to send stats with markdown: {e}")
                 # Fallback to plain text if markdown fails
-                plain_text = stats_message.replace('𝗚', 'G').replace('𝗦', 'S').replace('𝗣', 'P')\
-                    .replace('𝗔', 'A').replace('𝗧', 'T').replace('═', '=').replace('•', '*')
+                plain_text = stats_message.replace('𝗚', 'G').replace('𝗦', 'S').replace('𝗣', 'P').replace('𝗔', 'A').replace('𝗧', 'T').replace('═', '=').replace('•', '*')
                 await update.message.reply_text(plain_text)
 
         except Exception as e:
@@ -721,9 +717,7 @@ class TelegramQuizBot:
             except Exception as e:
                 logger.error(f"Failed to send stats with markdown: {e}")
                 # Fallback to plain text if markdown fails
-                plain_text = stats_message.replace('𝗕', 'B').replace('𝗨', 'U').replace('𝗚', 'G')\
-                    .replace('𝗤', 'Q').replace('𝗔', 'A').replace('𝗥', 'R').replace('𝗠', 'M')\
-                    .replace('═', '=').replace('•', '*')
+                plain_text = stats_message.replace('𝗕', 'B').replace('𝗨', 'U').replace('𝗚', 'G').replace('𝗤', 'Q').replace('𝗔', 'A').replace('𝗥', 'R').replace('𝗠', 'M').replace('═', '=').replace('•', '*')
                 await update.message.reply_text(plain_text)
 
         except Exception as e:
@@ -739,41 +733,43 @@ class TelegramQuizBot:
             # Header with description
             leaderboard_text = f"""🏆 𝗚𝗹𝗼𝗯𝗮𝗹 𝗟𝗲𝗮𝗱𝗲𝗿𝗯𝗼𝗮𝗿𝗱
 ════════════════
-📊 Top 10 Quiz Champions\n"""
+📊 Top 10 Quiz Champions"""
 
             # If no participants yet
             if not leaderboard:
-                leaderboard_text += "\n🎯 No participants yet! Be the first champion!"
+                leaderboard_text += "\n\n🎯 No participants yet! Be the first champion!"
                 await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN)
                 return
 
             # Add each user's stats
+            medals = ["🥇", "🥈", "🥉"]
             for rank, entry in enumerate(leaderboard[:10], 1):
                 try:
                     # Get user info from Telegram
                     user = await context.bot.get_chat(entry['user_id'])
                     username = user.first_name or user.username or "Anonymous"
 
-                    # Rank emojis
-                    medals = ["🥇", "🥈", "🥉"]
+                    # Rank emoji
                     rank_emoji = medals[rank-1] if rank <= 3 else f"{rank}️⃣"
 
                     # Add user stats with better formatting
                     leaderboard_text += f"""
+
 {rank_emoji} {username}
 ┣ 📝 Score: {entry['score']} points
 ┣ ✅ Total Quizzes: {entry['total_attempts']}
 ┣ 🎯 Correct: {entry['correct_answers']}
 ┣ 📊 Accuracy: {entry['accuracy']}%
 ┣ 🔥 Current Streak: {entry['current_streak']}
-┗ 👑 Best Streak: {entry['longest_streak']}
-"""
+┗ 👑 Best Streak: {entry['longest_streak']}"""
+
                 except Exception as e:
                     logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
                     continue
 
             # Footer with real-time info
             leaderboard_text += """
+
 📱 Rankings update in real-time
 🎮 Use /quiz to climb the ranks!
 ════════════════"""
@@ -792,63 +788,75 @@ class TelegramQuizBot:
             await update.message.reply_text("❌ Error retrieving leaderboard. Please try again.")
 
     async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Full bot restart - Developer only"""
+        """Reload all bot data and restore state - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
 
             # Send initial message
-            status_message = await update.message.reply_text("🔄 Initiating full bot reload...")
+            status_message = await update.message.reply_text(
+                "🔄 𝗜𝗻𝗶𝘁𝗶𝗮𝘁𝗶𝗻𝗴 𝗙𝘂𝗹𝗹 𝗕𝗼𝘁 𝗥𝗲𝗹𝗼𝗮𝗱\n════════════════",
+                parse_mode=ParseMode.MARKDOWN
+            )
 
             try:
-                # Save current state
-                await status_message.edit_text("📊 Saving current state...")
-                active_chats = self.quiz_manager.get_active_chats()
-                user_stats = self.quiz_manager.stats.copy()
+                # Step 1: Save current state
+                await status_message.edit_text(
+                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n"
+                    "════════════════\n"
+                    "⏳ Saving current state...",
+                    parse_mode=ParseMode.MARKDOWN
+                )
 
-                # Reload questions and data
-                await status_message.edit_text("📝 Reloading quiz database...")
-                self.quiz_manager.reload_data()  # This method should exist in QuizManager
-                logger.info("Questions and data reloaded successfully")
+                # Get initial counts
+                initial_users = len(self.quiz_manager.stats)
+                initial_groups = len(self.quiz_manager.get_active_chats())
+                initial_questions = len(self.quiz_manager.questions)
 
-                # Restore active chats
-                await status_message.edit_text("👥 Restoring active chats...")
-                for chat_id in active_chats:
-                    self.quiz_manager.add_active_chat(chat_id)
-                logger.info(f"Restored {len(active_chats)} active chats")
+                # Step 2: Reload all data
+                await status_message.edit_text(
+                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n"
+                    "════════════════\n"
+                    "✅ Current state saved\n"
+                    "⏳ Reloading database...",
+                    parse_mode=ParseMode.MARKDOWN
+                )
 
-                # Restore user stats
-                await status_message.edit_text("👤 Restoring user statistics...")
-                self.quiz_manager.stats.update(user_stats)
-                logger.info(f"Restored stats for {len(user_stats)} users")
+                # Perform the reload
+                self.quiz_manager.reload_data()
 
-                # Clear any cached data
-                if hasattr(self.quiz_manager, '_cached_leaderboard'):
-                    self.quiz_manager._cached_leaderboard = None
-                if hasattr(self.quiz_manager, '_leaderboard_cache_time'):
-                    self.quiz_manager._leaderboard_cache_time = None
+                # Get final counts
+                final_users = len(self.quiz_manager.stats)
+                final_groups = len(self.quiz_manager.get_active_chats())
+                final_questions = len(self.quiz_manager.questions)
 
-                # Verify data integrity
-                total_users = len(self.quiz_manager.stats)
-                total_groups = len(self.quiz_manager.get_active_chats())
-                total_questions = len(self.quiz_manager.questions)
+                # Calculate changes
+                new_users = final_users - initial_users
+                new_groups = final_groups - initial_groups
+                new_questions = final_questions - initial_questions
 
-                success_message = f"""✅ Bot Successfully Reloaded!
+                # Final success message
+                success_message = f"""✅ 𝗕𝗼𝘁 𝗥𝗲𝗹𝗼𝗮𝗱 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹!
+════════════════
 
-📊 𝗦𝘁𝗮𝘁𝘂𝘀 𝗥𝗲𝗽𝗼𝗿𝘁
-• Active Users: {total_users}
-• Active Groups: {total_groups}
-• Total Questions: {total_questions}
+📊 𝗦𝘆𝘀𝘁𝗲𝗺 𝗦𝘁𝗮𝘁𝘂𝘀
+• Active Users: {final_users} ({'+' + str(new_users) if new_users > 0 else new_users})
+• Active Groups: {final_groups} ({'+' + str(new_groups) if new_groups > 0 else new_groups})
+• Total Questions: {final_questions} ({'+' + str(new_questions) if new_questions > 0 else new_questions})
 
-⚡ All systems operational!"""
+⚡ All systems operational!
+════════════════"""
 
                 await status_message.edit_text(success_message, parse_mode=ParseMode.MARKDOWN)
                 logger.info("Full bot reload completed successfully")
 
             except Exception as e:
-                error_message = f"❌ Error during reload: {str(e)}"
-                await status_message.edit_text(error_message)
+                error_message = f"""❌ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗘𝗿𝗿𝗼𝗿
+════════════════
+Error: {str(e)}
+════════════════"""
+                await status_message.edit_text(error_message, parse_mode=ParseMode.MARKDOWN)
                 logger.error(f"Reload failed: {e}\n{traceback.format_exc()}")
                 raise
 
@@ -1032,9 +1040,7 @@ class TelegramQuizBot:
             except Exception as e:
                 logger.error(f"Failed to send stats with markdown: {e}")
                 # Fallback to plain text if markdown fails
-                plain_text = stats_message.replace('𝗕', 'B').replace('𝗨', 'U').replace('𝗚', 'G')\
-                    .replace('𝗤', 'Q').replace('𝗔', 'A').replace('𝗥', 'R').replace('𝗠', 'M')\
-                    .replace('═', '=').replace('•', '*')
+                plain_text = stats_message.replace('𝗕', 'B').replace('𝗨', 'U').replace('𝗚', 'G').replace('𝗤', 'Q').replace('𝗔', 'A').replace('𝗥', 'R').replace('𝗠', 'M').replace('═', '=').replace('•', '*')
                 await update.message.reply_text(plain_text)
 
         except Exception as e:
@@ -1174,8 +1180,7 @@ To delete this quiz:
             await update.message.reply_text(
                 """❌ 𝗘𝗿𝗿𝗼𝗿
 ════════════════
-Failed to display quizzes.
-Please try again later.
+Failed to display quizzes. Please try again later.
 ════════════════""",
                 parse_mode=ParseMode.MARKDOWN
             )
@@ -1502,8 +1507,7 @@ Please provide a valid number.
             await update.message.reply_text(
                 """❌ 𝗘𝗿𝗿𝗼𝗿
 ════════════════
-Failed to process delete request.
-Please try again later.
+Failed to process delete request. Please try again later.
 ════════════════""",
                 parse_mode=ParseMode.MARKDOWN
             )
@@ -1580,8 +1584,7 @@ Please provide a valid number.
             await update.message.reply_text(
                 """❌ 𝗘𝗿𝗿𝗼𝗿
 ════════════════
-Failed to delete quiz.
-Please try again later.
+Failed to delete quiz. Please try again.
 ════════════════""",
                 parse_mode=ParseMode.MARKDOWN
             )
@@ -1590,7 +1593,7 @@ Please try again later.
         """Show total number of quizzes - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
-                awaitself._handle_dev_command_unauthorized(update)
+                await self._handle_dev_command_unauthorized(update)
                 return
 
             ## Force reload questions

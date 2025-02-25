@@ -769,7 +769,7 @@ class QuizManager:
                 return False
 
             # Validate correct_answer is within bounds
-            if not isinstance(question['correct_answer'], int) or not (0 <= question['correct_answer'] < 4):
+            if not isinstance(question['correct_answer'], int) or not (0 <= question['correctanswer'] < 4):
                 return False
 
             return True
@@ -795,17 +795,14 @@ class QuizManager:
         except Exception as e:
             logger.error(f"Error removing invalid questions: {e}")
             raise
+
     def clear_all_questions(self):
         """Remove all questions from the database"""
         try:
-            initial_count = len(self.questions)
             self.questions = []
             self.save_data(force=True)
-            logger.info(f"Cleared all {initial_count} questions from database")
-            return {
-                'initial_count': initial_count,
-                'cleared': True
-            }
+            logger.info("All questions cleared successfully")
+            return True
         except Exception as e:
             logger.error(f"Error clearing questions: {e}")
             raise
@@ -817,14 +814,13 @@ class QuizManager:
 
             # Store current state
             current_stats = self.stats.copy()
+            current_scores = self.scores.copy()
             current_active_chats = self.active_chats.copy()
 
-            # Reset caches
+            # Reset caches and tracking structures
             self._cached_questions = None
             self._cached_leaderboard = None
             self._leaderboard_cache_time = None
-
-            # Clear tracking structures
             self.recent_questions.clear()
             self.last_question_time.clear()
             self.available_questions.clear()
@@ -832,14 +828,35 @@ class QuizManager:
             # Reload all data files
             self.load_data()
 
-            # Restore state
+            # Merge states
             self.stats.update(current_stats)
-            self.active_chats = list(set(self.active_chats + current_active_chats))
+            self.scores.update(current_scores)
+
+            # Collect all active chats from both direct tracking and user stats
+            all_active_chats = set(current_active_chats)
+
+            # Add chats from group activity in user stats
+            for user_stats in self.stats.values():
+                # Add all group chats from user stats
+                all_active_chats.update(
+                    int(chat_id) for chat_id in user_stats.get('groups', {}).keys()
+                )
+                # Add private chats (where user_id matches chat_id)
+                if user_stats.get('last_quiz_date'):
+                    all_active_chats.add(int(list(user_stats.keys())[0]))
+
+            # Update active_chats with merged unique chats
+            self.active_chats = sorted(all_active_chats)
 
             # Force save to ensure clean state
             self.save_data(force=True)
 
-            logger.info(f"Data reload completed successfully. Active chats: {len(self.active_chats)}, Users: {len(self.stats)}")
+            # Log detailed results
+            logger.info("Data reload completed successfully:")
+            logger.info(f"- Active chats: {len(self.active_chats)}")
+            logger.info(f"- Active users: {len(self.stats)}")
+            logger.info(f"- Total scores: {len(self.scores)}")
+            logger.info(f"- Questions loaded: {len(self.questions)}")
             return True
 
         except Exception as e:
@@ -850,12 +867,22 @@ class QuizManager:
         """Get the last activity date for a group"""
         try:
             current_date = datetime.now().strftime('%Y-%m-%d')
+
+            # Check group activity in user stats
             active_users = [
                 user_id for user_id, stats in self.stats.items()
-                if chat_id in stats.get('groups', {}) and 
-                stats['groups'][chat_id].get('last_activity_date') == current_date
+                if str(chat_id) in stats.get('groups', {}) and
+                stats['groups'][str(chat_id)].get('last_activity_date') == current_date
             ]
+
+            # Also check private chat activity
+            if not active_users and str(chat_id) in [str(uid) for uid in self.stats.keys()]:
+                user_stats = self.stats.get(str(chat_id))
+                if user_stats and user_stats.get('last_quiz_date') == current_date:
+                    return current_date
+
             return current_date if active_users else None
+
         except Exception as e:
             logger.error(f"Error getting group last activity: {e}")
             return None
