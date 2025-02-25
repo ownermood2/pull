@@ -862,26 +862,21 @@ class QuizManager:
             logger.error(f"Error reloading data: {str(e)}\n{traceback.format_exc()}")
             raise
 
-    def get_group_last_activity(self, chat_id: str) -> str:
+    def get_group_last_activity(self, chat_id: str) -> Optional[str]:
         """Get the last activity date for a group"""
         try:
-            current_date = datetime.now().strftime('%Y-%m-%d')
+            latest_activity = None
+            chat_id_str = str(chat_id)
 
-            # Check group activity in user stats
-            active_users = [
-                user_id for user_id, stats in self.stats.items()
-                if str(chat_id) in stats.get('groups', {}) and
-                stats['groups'][str(chat_id)].get('last_activity_date') == current_date
-            ]
+            # Check all users' group activity
+            for stats in self.stats.values():
+                if chat_id_str in stats.get('groups', {}):
+                    group_last_activity = stats['groups'][chat_id_str].get('last_activity_date')
+                    if group_last_activity:
+                        if not latest_activity or group_last_activity > latest_activity:
+                            latest_activity = group_last_activity
 
-            # Also check private chat activity
-            if not active_users and str(chat_id) in [str(uid) for uid in self.stats.keys()]:
-                user_stats = self.stats.get(str(chat_id))
-                if user_stats and user_stats.get('last_quiz_date') == current_date:
-                    return current_date
-
-            return current_date if active_users else None
-
+            return latest_activity
         except Exception as e:
             logger.error(f"Error getting group last activity: {e}")
             return None
@@ -987,3 +982,111 @@ class QuizManager:
             logger.info("Completed cleanup of old questions history")
         except Exception as e:
             logger.error(f"Error in cleanup_old_questions: {e}")
+
+    def track_user_activity(self, user_id: int, chat_id: int) -> None:
+        """Track user activity in real-time"""
+        try:
+            user_id_str = str(user_id)
+            chat_id_str = str(chat_id)
+            current_date = datetime.now().strftime('%Y-%m-%d')
+
+            # Initialize user if not exists
+            if user_id_str not in self.stats:
+                self._init_user_stats(user_id_str)
+
+            # Update user's last activity
+            self.stats[user_id_str]['last_activity_date'] = current_date
+
+            # Update group activity if it's a group chat
+            if chat_id_str not in self.stats[user_id_str].get('groups', {}):
+                self.stats[user_id_str]['groups'][chat_id_str] = {
+                    'total_quizzes': 0,
+                    'correct_answers': 0,
+                    'score': 0,
+                    'last_activity_date': current_date,
+                    'daily_activity': {},
+                    'current_streak': 0,
+                    'longest_streak': 0,
+                    'last_correct_date': None
+                }
+
+            # Force save to ensure no data loss
+            self.save_data(force=True)
+            logger.info(f"Tracked activity for user {user_id} in chat {chat_id}")
+
+        except Exception as e:
+            logger.error(f"Error tracking user activity: {e}")
+
+    def get_active_users(self) -> List[str]:
+        """Get list of active users"""
+        try:
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            week_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+
+            active_users = set()
+
+            # Check user activity
+            for user_id, stats in self.stats.items():
+                last_activity = stats.get('last_activity_date')
+                if last_activity and last_activity >= week_start:
+                    active_users.add(user_id)
+
+                # Check group activity
+                for group_stats in stats.get('groups', {}).values():
+                    if group_stats.get('last_activity_date', '') >= week_start:
+                        active_users.add(user_id)
+                        break
+
+            return list(active_users)
+        except Exception as e:
+            logger.error(f"Error getting active users: {e}")
+            return []
+
+    def update_all_stats(self) -> None:
+        """Update all statistics in real-time"""
+        try:
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            week_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+
+            # Update user stats
+            for user_id, stats in self.stats.items():
+                try:
+                    # Ensure daily activity exists
+                    if current_date not in stats['daily_activity']:
+                        stats['daily_activity'][current_date] = {
+                            'attempts': 0,
+                            'correct': 0
+                        }
+
+                    # Update group stats
+                    for group_id, group_stats in stats.get('groups', {}).items():
+                        if current_date not in group_stats.get('daily_activity', {}):
+                            group_stats['daily_activity'][current_date] = {
+                                'attempts': 0,
+                                'correct': 0
+                            }
+
+                        # Clean up old daily activity data
+                        old_dates = [
+                            date for date in group_stats['daily_activity']
+                            if date < week_start
+                        ]
+                        for date in old_dates:
+                            del group_stats['daily_activity'][date]
+
+                    # Sync with scores
+                    score = self.scores.get(user_id, 0)
+                    if score != stats['correct_answers']:
+                        stats['correct_answers'] = score
+                        stats['total_quizzes'] = max(stats['total_quizzes'], score)
+
+                except Exception as e:
+                    logger.error(f"Error updating stats for user {user_id}: {e}")
+                    continue
+
+            # Force save after updates
+            self.save_data(force=True)
+            logger.info("All stats updated successfully")
+
+        except Exception as e:
+            logger.error(f"Error updating all stats: {e}")

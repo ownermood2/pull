@@ -722,6 +722,130 @@ class TelegramQuizBot:
             logger.error(f"Error in globalstats: {e}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error retrieving global statistics. Please try again.")
 
+    async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Enhanced reload functionality with improved connection handling"""
+        try:
+            if not await self.is_developer(update.message.from_user.id):
+                await self._handle_dev_command_unauthorized(update)
+                return
+
+            status_message = await update.message.reply_text(
+                "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n⏳ Saving current state...",
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+            try:
+                # Save current state with force
+                self.quiz_manager.save_data(force=True)
+                logger.info("Current state saved successfully")
+
+                # Update status
+                await status_message.edit_text(
+                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n✅ Current state saved\n⏳ Scanning for chats...",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+
+                # Get current active chats
+                current_chats = set(self.quiz_manager.get_active_chats())
+                
+                # Create a new application instance with increased pool size
+                temp_app = (
+                    Application.builder()
+                    .token(context.bot.token)
+                    .connection_pool_size(16)  # Increased pool size
+                    .connect_timeout(30.0)     # Increased timeout
+                    .read_timeout(30.0)
+                    .write_timeout(30.0)
+                    .build()
+                )
+                
+                # Initialize the temporary application
+                await temp_app.initialize()
+                
+                try:
+                    # Get updates to discover chats (with increased limit)
+                    updates = await temp_app.bot.get_updates(offset=-1, limit=100, timeout=30)
+                    discovered_chats = set()
+                    
+                    # Extract chat IDs from updates
+                    for update in updates:
+                        if update.message:
+                            discovered_chats.add(update.message.chat_id)
+                            # Track users for stats
+                            if update.effective_user:
+                                self.quiz_manager.track_user_activity(
+                                    update.effective_user.id,
+                                    update.message.chat_id
+                                )
+                        elif update.callback_query and update.callback_query.message:
+                            discovered_chats.add(update.callback_query.message.chat.id)
+                            # Track callback users
+                            if update.callback_query.from_user:
+                                self.quiz_manager.track_user_activity(
+                                    update.callback_query.from_user.id,
+                                    update.callback_query.message.chat.id
+                                )
+                
+                finally:
+                    # Clean up temporary application
+                    await temp_app.shutdown()
+
+                # Add missing chats and update their status
+                new_chats = discovered_chats - current_chats
+                for chat_id in new_chats:
+                    self.quiz_manager.add_active_chat(chat_id)
+                    try:
+                        chat = await context.bot.get_chat(chat_id)
+                        logger.info(f"Added new chat: {chat.title if chat.title else 'Private'} ({chat_id})")
+                    except Exception as e:
+                        logger.error(f"Error getting chat info for {chat_id}: {e}")
+
+                # Reload data and update all stats
+                self.quiz_manager.load_data()
+                self.quiz_manager.update_all_stats()
+
+                # Get updated metrics
+                active_users = len(self.quiz_manager.get_active_users())
+                total_questions = len(self.quiz_manager.questions)
+                current_date = datetime.now().strftime('%Y-%m-%d')
+                active_groups_today = len([c for c in self.quiz_manager.get_active_chats() 
+                                        if self.quiz_manager.get_group_last_activity(c) == current_date])
+
+                # Send comprehensive success message
+                success_message = f"""✅ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗖𝗼𝗺𝗽𝗹𝗲𝘁𝗲
+════════════════
+📊 𝗦𝘁𝗮𝘁𝘂𝘀:
+• New Chats Found: {len(new_chats)}
+• Total Active Chats: {len(self.quiz_manager.get_active_chats())}
+• Active Groups Today: {active_groups_today}
+• Active Users: {active_users}
+• Questions Loaded: {total_questions}
+• Stats Updated: ✅
+
+✨ All systems operational!
+════════════════"""
+
+                await status_message.edit_text(
+                    success_message,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.info("Reload completed successfully")
+
+                # Schedule new quiz delivery
+                await self.send_automated_quiz(context)
+
+            except Exception as e:
+                error_message = f"""❌ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗘𝗿𝗿𝗼𝗿
+════════════════
+Error: {str(e)}
+════════════════"""
+                await status_message.edit_text(error_message, parse_mode=ParseMode.MARKDOWN)
+                logger.error(f"Reload failed: {e}\n{traceback.format_exc()}")
+
+        except Exception as e:
+            logger.error(f"Error in allreload: {e}\n{traceback.format_exc()}")
+            await update.message.reply_text("❌ Critical error during reload.")
+
     async def leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show global leaderboard with top 10 performers"""
         try:
@@ -785,76 +909,7 @@ class TelegramQuizBot:
             logger.error(f"Error showing leaderboard: {e}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error retrieving leaderboard. Please try again.")
 
-    async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Enhanced reload functionality"""
-        try:
-            if not await self.is_developer(update.message.from_user.id):
-                await self._handle_dev_command_unauthorized(update)
-                return
 
-            status_message = await update.message.reply_text(
-                "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n⏳ Saving current state...",
-                parse_mode=ParseMode.MARKDOWN
-            )
-
-            try:
-                # Save current state
-                self.quiz_manager.save_data(force=True)
-
-                # Update status
-                await status_message.edit_text(
-                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n✅ Current state saved\n⏳ Scanning for new chats...",
-                    parse_mode=ParseMode.MARKDOWN
-                )
-
-                # Get all chats the bot is in
-                bot_chats = set()
-                async for chat in context.bot.get_updates():
-                    if chat.effective_chat:
-                        bot_chats.add(chat.effective_chat.id)
-
-                # Add missing chats to active_chats
-                current_chats = set(self.quiz_manager.get_active_chats())
-                new_chats = bot_chats - current_chats
-
-                for chat_id in new_chats:
-                    self.quiz_manager.add_active_chat(chat_id)
-
-                # Reload data
-                self.quiz_manager.load_data()
-
-                # Send success message
-                success_message = f"""✅ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗖𝗼𝗺𝗽𝗹𝗲𝘁𝗲
-════════════════
-📊 𝗦𝘁𝗮𝘁𝘂𝘀:
-• New Chats Found: {len(new_chats)}
-• Total Active Chats: {len(self.quiz_manager.get_active_chats())}
-• Questions Loaded: {len(self.quiz_manager.questions)}
-• Users in Database: {len(self.quiz_manager.stats)}
-
-✨ All systems operational!
-════════════════"""
-
-                await status_message.edit_text(
-                    success_message,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                logger.info("Reload completed successfully")
-
-                # Send new quiz to all active chats
-                await self.send_automated_quiz(context)
-
-            except Exception as e:
-                error_message = f"""❌ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗘𝗿𝗿𝗼𝗿
-════════════════
-Error: {str(e)}
-════════════════"""
-                await status_message.edit_text(error_message, parse_mode=ParseMode.MARKDOWN)
-                logger.error(f"Reload failed: {e}\n{traceback.format_exc()}")
-
-        except Exception as e:
-            logger.error(f"Error in allreload: {e}\n{traceback.format_exc()}")
-            await update.message.reply_text("❌ Critical error during reload.")
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Add new quiz(zes) - Developer only"""
