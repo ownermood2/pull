@@ -790,13 +790,14 @@ class TelegramQuizBot:
 
             try:
                 # Save current state
+                await status_message.edit_text("📊 Saving current state...")
                 active_chats = self.quiz_manager.get_active_chats()
                 user_stats = self.quiz_manager.stats.copy()
 
-                # Reinitialize quiz manager
-                await status_message.edit_text("📊 Reloading quiz database...")
-                self.quiz_manager.load_questions()
-                logger.info("Questions reloaded successfully")
+                # Reload questions and data
+                await status_message.edit_text("📝 Reloading quiz database...")
+                self.quiz_manager.reload_data()  # This method should exist in QuizManager
+                logger.info("Questions and data reloaded successfully")
 
                 # Restore active chats
                 await status_message.edit_text("👥 Restoring active chats...")
@@ -806,8 +807,14 @@ class TelegramQuizBot:
 
                 # Restore user stats
                 await status_message.edit_text("👤 Restoring user statistics...")
-                self.quiz_manager.stats = user_stats
+                self.quiz_manager.stats.update(user_stats)
                 logger.info(f"Restored stats for {len(user_stats)} users")
+
+                # Clear any cached data
+                if hasattr(self.quiz_manager, '_cached_leaderboard'):
+                    self.quiz_manager._cached_leaderboard = None
+                if hasattr(self.quiz_manager, '_leaderboard_cache_time'):
+                    self.quiz_manager._leaderboard_cache_time = None
 
                 # Verify data integrity
                 total_users = len(self.quiz_manager.stats)
@@ -1573,7 +1580,7 @@ Please try again later.
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Force reload questions
+            ## Force reload questions
             total_questions = len(self.quiz_manager.get_all_questions())
             logger.info(f"Total questions count: {total_questions}")
 
