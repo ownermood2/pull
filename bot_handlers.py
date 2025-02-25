@@ -636,52 +636,64 @@ class TelegramQuizBot:
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Get basic stats
-            active_chats = self.quiz_manager.get_active_chats()
-            total_users = len(self.quiz_manager.stats)
-            total_groups = len(active_chats)
+            # Get basic stats with error handling
+            try:
+                active_chats = self.quiz_manager.get_active_chats()
+                total_users = len(self.quiz_manager.stats)
+                total_groups = len(active_chats)
+            except Exception as e:
+                logger.error(f"Error getting basic stats: {e}")
+                raise
 
             # Calculate time-based metrics
-            current_date = datetime.now().strftime('%Y-%m-%d')
-            today_active_users = sum(
-                1 for stats in self.quiz_manager.stats.values()
-                if stats.get('last_activity_date') == current_date
-            )
+            try:
+                current_date = datetime.now().strftime('%Y-%m-%d')
+                today_active_users = sum(
+                    1 for stats in self.quiz_manager.stats.values()
+                    if stats.get('last_activity_date') == current_date
+                )
 
-            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
-            week_active_users = sum(
-                1 for stats in self.quiz_manager.stats.values()
-                if stats.get('last_activity_date', '1970-01-01') >= week_start
-            )
+                week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+                week_active_users = sum(
+                    1 for stats in self.quiz_manager.stats.values()
+                    if stats.get('last_activity_date', '1970-01-01') >= week_start
+                )
+            except Exception as e:
+                logger.error(f"Error calculating time-based metrics: {e}")
+                raise
 
             # Calculate quiz statistics
-            today_quizzes = sum(
-                stats['daily_activity'].get(current_date, {}).get('attempts', 0)
-                for stats in self.quiz_manager.stats.values()
-            )
-
-            week_quizzes = sum(
-                sum(
-                    day_stats.get('attempts', 0)
-                    for date, day_stats in stats['daily_activity'].items()
-                    if date >= week_start
+            try:
+                today_quizzes = sum(
+                    stats['daily_activity'].get(current_date, {}).get('attempts', 0)
+                    for stats in self.quiz_manager.stats.values()
                 )
-                for stats in self.quiz_manager.stats.values()
-            )
 
-            # Calculate success rates
-            total_attempts = sum(
-                stats.get('total_quizzes', 0)
-                for stats in self.quiz_manager.stats.values()
-            )
-            correct_answers = sum(
-                stats.get('correct_answers', 0)
-                for stats in self.quiz_manager.stats.values()
-            )
-            success_rate = (
-                round((correct_answers / total_attempts) * 100, 2)
-                if total_attempts > 0 else 0
-            )
+                week_quizzes = sum(
+                    sum(
+                        day_stats.get('attempts', 0)
+                        for date, day_stats in stats['daily_activity'].items()
+                        if date >= week_start
+                    )
+                    for stats in self.quiz_manager.stats.values()
+                )
+
+                # Calculate success rates
+                total_attempts = sum(
+                    stats.get('total_quizzes', 0)
+                    for stats in self.quiz_manager.stats.values()
+                )
+                correct_answers = sum(
+                    stats.get('correct_answers', 0)
+                    for stats in self.quiz_manager.stats.values()
+                )
+                success_rate = (
+                    round((correct_answers / total_attempts) * 100, 2)
+                    if total_attempts > 0 else 0
+                )
+            except Exception as e:
+                logger.error(f"Error calculating quiz statistics: {e}")
+                raise
 
             stats_message = f"""📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
 ════════════════
@@ -734,7 +746,7 @@ class TelegramQuizBot:
             # Get user info for each leaderboard entry
             for rank, entry in enumerate(leaderboard[:10], 1):
                 try:
-                    # Get user info from Telegram
+                    # Get userinfo from Telegram
                     user = await context.bot.get_chat(entry['user_id'])
                     username = user.first_name or user.username or "Anonymous"
 
@@ -773,52 +785,57 @@ class TelegramQuizBot:
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            logger.info("Starting full bot reload...")
-            await update.message.reply_text("🔄 Reloading bot data...", parse_mode=ParseMode.MARKDOWN)
+            # Send initial message
+            status_message = await update.message.reply_text("🔄 Initiating full bot reload...")
 
             try:
-                # Reload all data
-                self.quiz_manager.load_data()
-                logger.info("Data reloaded successfully")
+                # Save current state
+                active_chats = self.quiz_manager.get_active_chats()
+                user_stats = self.quiz_manager.stats.copy()
 
-                # Clear command cooldowns and history
-                self.command_cooldowns.clear()
-                self.command_history.clear()
-                logger.info("Cleared command history and cooldowns")
+                # Reinitialize quiz manager
+                await status_message.edit_text("📊 Reloading quiz database...")
+                self.quiz_manager.load_questions()
+                logger.info("Questions reloaded successfully")
 
-                # Clear any cached data
-                if hasattr(self.quiz_manager, '_cached_leaderboard'):
-                    self.quiz_manager._cached_leaderboard = None
-                if hasattr(self.quiz_manager, '_leaderboard_cache_time'):
-                    self.quiz_manager._leaderboard_cache_time = None
-                logger.info("Cleared cached data")
+                # Restore active chats
+                await status_message.edit_text("👥 Restoring active chats...")
+                for chat_id in active_chats:
+                    self.quiz_manager.add_active_chat(chat_id)
+                logger.info(f"Restored {len(active_chats)} active chats")
 
-                await update.message.reply_text(
-                    "✅ Bot successfully reloaded!\n\n"
-                    "• Questions reloaded\n"
-                    "• Stats refreshed\n"
-                    "• Caches cleared\n"
-                    "• Command history reset",
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                logger.info("Bot reload completed successfully")
+                # Restore user stats
+                await status_message.edit_text("👤 Restoring user statistics...")
+                self.quiz_manager.stats = user_stats
+                logger.info(f"Restored stats for {len(user_stats)} users")
+
+                # Verify data integrity
+                total_users = len(self.quiz_manager.stats)
+                total_groups = len(self.quiz_manager.get_active_chats())
+                total_questions = len(self.quiz_manager.questions)
+
+                success_message = f"""✅ Bot Successfully Reloaded!
+
+📊 𝗦𝘁𝗮𝘁𝘂𝘀 𝗥𝗲𝗽𝗼𝗿𝘁
+• Active Users: {total_users}
+• Active Groups: {total_groups}
+• Total Questions: {total_questions}
+
+⚡ All systems operational!"""
+
+                await status_message.edit_text(success_message, parse_mode=ParseMode.MARKDOWN)
+                logger.info("Full bot reload completed successfully")
 
             except Exception as e:
-                error_msg = f"Error during data reload: {str(e)}\n{traceback.format_exc()}"
-                logger.error(error_msg)
-                await update.message.reply_text(
-                    "❌ Error reloading bot data. Please check the logs.",
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                return
+                error_message = f"❌ Error during reload: {str(e)}"
+                await status_message.edit_text(error_message)
+                logger.error(f"Reload failed: {e}\n{traceback.format_exc()}")
+                raise
 
         except Exception as e:
-            error_msg = f"Error in allreload command: {str(e)}\n{traceback.format_exc()}"
-            logger.error(error_msg)
-            await update.message.reply_text(
-                "❌ Error during bot reload. Please check the logs.",
-                parse_mode=ParseMode.MARKDOWN
-            )
+            logger.error(f"Error in allreload: {e}\n{traceback.format_exc()}")
+            await update.message.reply_text("❌ Critical error during reload.")
+            raise
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Add new quiz(zes) - Developer only"""
@@ -910,52 +927,64 @@ class TelegramQuizBot:
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Get basic stats
-            active_chats = self.quiz_manager.get_active_chats()
-            total_users = len(self.quiz_manager.stats)
-            total_groups = len(active_chats)
+            # Get basic stats with error handling
+            try:
+                active_chats = self.quiz_manager.get_active_chats()
+                total_users = len(self.quiz_manager.stats)
+                total_groups = len(active_chats)
+            except Exception as e:
+                logger.error(f"Error getting basic stats: {e}")
+                raise
 
             # Calculate time-based metrics
-            current_date = datetime.now().strftime('%Y-%m-%d')
-            today_active_users = sum(
-                1 for stats in self.quiz_manager.stats.values()
-                if stats.get('last_activity_date') == current_date
-            )
+            try:
+                current_date = datetime.now().strftime('%Y-%m-%d')
+                today_active_users = sum(
+                    1 for stats in self.quiz_manager.stats.values()
+                    if stats.get('last_activity_date') == current_date
+                )
 
-            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
-            week_active_users = sum(
-                1 for stats in self.quiz_manager.stats.values()
-                if stats.get('last_activity_date', '1970-01-01') >= week_start
-            )
+                week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+                week_active_users = sum(
+                    1 for stats in self.quiz_manager.stats.values()
+                    if stats.get('last_activity_date', '1970-01-01') >= week_start
+                )
+            except Exception as e:
+                logger.error(f"Error calculating time-based metrics: {e}")
+                raise
 
             # Calculate quiz statistics
-            today_quizzes = sum(
-                stats['daily_activity'].get(current_date, {}).get('attempts', 0)
-                for stats in self.quiz_manager.stats.values()
-            )
-
-            week_quizzes = sum(
-                sum(
-                    day_stats.get('attempts', 0)
-                    for date, day_stats in stats['daily_activity'].items()
-                    if date >= week_start
+            try:
+                today_quizzes = sum(
+                    stats['daily_activity'].get(current_date, {}).get('attempts', 0)
+                    for stats in self.quiz_manager.stats.values()
                 )
-                for stats in self.quiz_manager.stats.values()
-            )
 
-            # Calculate success rates
-            total_attempts = sum(
-                stats.get('total_quizzes', 0)
-                for stats in self.quiz_manager.stats.values()
-            )
-            correct_answers = sum(
-                stats.get('correct_answers', 0)
-                for stats in self.quiz_manager.stats.values()
-            )
-            success_rate = (
-                round((correct_answers / total_attempts) * 100, 2)
-                if total_attempts > 0 else 0
-            )
+                week_quizzes = sum(
+                    sum(
+                        day_stats.get('attempts', 0)
+                        for date, day_stats in stats['daily_activity'].items()
+                        if date >= week_start
+                    )
+                    for stats in self.quiz_manager.stats.values()
+                )
+
+                # Calculate success rates
+                total_attempts = sum(
+                    stats.get('total_quizzes', 0)
+                    for stats in self.quiz_manager.stats.values()
+                )
+                correct_answers = sum(
+                    stats.get('correct_answers', 0)
+                    for stats in self.quiz_manager.stats.values()
+                )
+                success_rate = (
+                    round((correct_answers / total_attempts) * 100, 2)
+                    if total_attempts > 0 else 0
+                )
+            except Exception as e:
+                logger.error(f"Error calculating quiz statistics: {e}")
+                raise
 
             stats_message = f"""📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
 ════════════════
@@ -1554,7 +1583,7 @@ Please try again later.
 ════════════════
 
 Use /addquiz to add more quizzes!
-Use /help to see all commands."""
+Use/help to see all commands."""
 
             await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
             logger.info(f"Sent quiz count to user {update.message.from_user.id}")
