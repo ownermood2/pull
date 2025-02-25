@@ -257,16 +257,17 @@ class TelegramQuizBot:
             logger.error(f"Error in track_chats: {e}")
 
     async def send_welcome_message(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send welcome message when bot joins a group"""
-        keyboard = [
-            [InlineKeyboardButton(
-                "🔥 Add to Group/Channel 🔥",
-                url=f"https://t.me/{context.bot.username}?startgroup=true"
-            )]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        """Send unified welcome message when bot joins a group or starts in private chat"""
+        try:
+            keyboard = [
+                [InlineKeyboardButton(
+                    "🔥 Add to Group/Channel 🔥",
+                    url=f"https://t.me/{context.bot.username}?startgroup=true"
+                )]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
 
-        welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
+            welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
 
 🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
 ➜ Auto Quizzes – Fresh quiz every 20 mins!
@@ -281,7 +282,6 @@ class TelegramQuizBot:
 
 🔥 Add me to your groups for quiz fun!"""
 
-        try:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=welcome_message,
@@ -289,7 +289,7 @@ class TelegramQuizBot:
                 parse_mode=ParseMode.MARKDOWN
             )
 
-            # If it's a group, check admin status and handle accordingly
+            # Get chat type and handle accordingly
             chat = await context.bot.get_chat(chat_id)
             if chat.type in ["group", "supergroup"]:
                 is_admin = await self.check_admin_status(chat_id, context)
@@ -297,6 +297,9 @@ class TelegramQuizBot:
                     await self.send_quiz(chat_id, context)
                 else:
                     await self.send_admin_reminder(chat_id, context)
+            elif chat.type == "private":
+                # In private chat, just send a demo quiz
+                await self.send_quiz(chat_id, context)
 
             logger.info(f"Sent welcome message to chat {chat_id}")
         except Exception as e:
@@ -361,50 +364,9 @@ class TelegramQuizBot:
         """Handle the /start command"""
         try:
             chat_id = update.effective_chat.id
-            chat_type = update.effective_chat.type
             self.quiz_manager.add_active_chat(chat_id)
-
-            keyboard = [
-                [InlineKeyboardButton(
-                    "🔥 Add to Group/Channel 🔥",
-                    url=f"https://t.me/{context.bot.username}?startgroup=true"
-                )]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
-
-🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
-➜ Auto Quizzes – Fresh quiz every 20 mins!
-➜ Leaderboard – Track scores & compete!
-➜ Categories – GK, CA, History & more! /category
-➜ Instant Results – Answers in real-time!
-
-📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
-/start – Begin your journey
-/help – View commands
-/category – View topics
-
-🔥 Add me to your groups for quiz fun!"""
-
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=welcome_message,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.MARKDOWN
-            )
-
-            # If it's a group, check admin status and handle accordingly
-            if chat_type in ["group", "supergroup"]:
-                is_admin = await self.check_admin_status(chat_id, context)
-                if is_admin:
-                    await self.send_quiz(chat_id, context)
-                else:
-                    await self.send_admin_reminder(chat_id, context)
-            elif chat_type == "private":
-                # In private chat, just send a demo quiz
-                await self.send_quiz(chat_id, context)
-
+            await self.send_welcome_message(chat_id, context)
+            
         except Exception as e:
             logger.error(f"Error in start command: {e}")
             await update.message.reply_text("Error starting the bot. Please try again.")
@@ -723,7 +685,7 @@ class TelegramQuizBot:
             await update.message.reply_text("❌ Error retrieving global statistics. Please try again.")
 
     async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Enhanced reload functionality with improved connection handling"""
+        """Enhanced reload functionality with proper instance management"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
@@ -735,72 +697,47 @@ class TelegramQuizBot:
             )
 
             try:
-                # Save current state with force
+                # Save current state
                 self.quiz_manager.save_data(force=True)
                 logger.info("Current state saved successfully")
 
                 # Update status
                 await status_message.edit_text(
-                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n✅ Current state saved\n⏳ Scanning for chats...",
+                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n✅ Current state saved\n⏳ Scanning active chats...",
                     parse_mode=ParseMode.MARKDOWN
                 )
 
                 # Get current active chats
                 current_chats = set(self.quiz_manager.get_active_chats())
-                
-                # Create a new application instance with increased pool size
-                temp_app = (
-                    Application.builder()
-                    .token(context.bot.token)
-                    .connection_pool_size(16)  # Increased pool size
-                    .connect_timeout(30.0)     # Increased timeout
-                    .read_timeout(30.0)
-                    .write_timeout(30.0)
-                    .build()
-                )
-                
-                # Initialize the temporary application
-                await temp_app.initialize()
-                
-                try:
-                    # Get updates to discover chats (with increased limit)
-                    updates = await temp_app.bot.get_updates(offset=-1, limit=100, timeout=30)
-                    discovered_chats = set()
-                    
-                    # Extract chat IDs from updates
-                    for update in updates:
-                        if update.message:
-                            discovered_chats.add(update.message.chat_id)
-                            # Track users for stats
-                            if update.effective_user:
-                                self.quiz_manager.track_user_activity(
-                                    update.effective_user.id,
-                                    update.message.chat_id
-                                )
-                        elif update.callback_query and update.callback_query.message:
-                            discovered_chats.add(update.callback_query.message.chat.id)
-                            # Track callback users
-                            if update.callback_query.from_user:
-                                self.quiz_manager.track_user_activity(
-                                    update.callback_query.from_user.id,
-                                    update.callback_query.message.chat.id
-                                )
-                
-                finally:
-                    # Clean up temporary application
-                    await temp_app.shutdown()
+                discovered_chats = set()
 
-                # Add missing chats and update their status
-                new_chats = discovered_chats - current_chats
-                for chat_id in new_chats:
-                    self.quiz_manager.add_active_chat(chat_id)
+                # Use existing bot instance to get chat members
+                async def scan_chat(chat_id):
                     try:
                         chat = await context.bot.get_chat(chat_id)
-                        logger.info(f"Added new chat: {chat.title if chat.title else 'Private'} ({chat_id})")
+                        if chat.type in ['group', 'supergroup', 'private']:
+                            discovered_chats.add(chat_id)
+                            logger.info(f"Discovered chat: {chat.title if chat.title else 'Private'} ({chat_id})")
                     except Exception as e:
-                        logger.error(f"Error getting chat info for {chat_id}: {e}")
+                        logger.warning(f"Could not scan chat {chat_id}: {e}")
 
-                # Reload data and update all stats
+                # Scan existing chats
+                scan_tasks = []
+                for chat_id in current_chats:
+                    scan_tasks.append(scan_chat(chat_id))
+
+                # Execute all scans concurrently
+                await asyncio.gather(*scan_tasks, return_exceptions=True)
+
+                # Update active chats
+                for chat_id in discovered_chats - current_chats:
+                    self.quiz_manager.add_active_chat(chat_id)
+
+                # Clean up inactive chats
+                for chat_id in current_chats - discovered_chats:
+                    self.quiz_manager.remove_active_chat(chat_id)
+
+                # Reload data and update stats
                 self.quiz_manager.load_data()
                 self.quiz_manager.update_all_stats()
 
@@ -808,16 +745,14 @@ class TelegramQuizBot:
                 active_users = len(self.quiz_manager.get_active_users())
                 total_questions = len(self.quiz_manager.questions)
                 current_date = datetime.now().strftime('%Y-%m-%d')
-                active_groups_today = len([c for c in self.quiz_manager.get_active_chats() 
-                                        if self.quiz_manager.get_group_last_activity(c) == current_date])
-
+                
                 # Send comprehensive success message
                 success_message = f"""✅ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗖𝗼𝗺𝗽𝗹𝗲𝘁𝗲
 ════════════════
 📊 𝗦𝘁𝗮𝘁𝘂𝘀:
-• New Chats Found: {len(new_chats)}
-• Total Active Chats: {len(self.quiz_manager.get_active_chats())}
-• Active Groups Today: {active_groups_today}
+• Active Chats: {len(discovered_chats)}
+• New Chats Added: {len(discovered_chats - current_chats)}
+• Inactive Removed: {len(current_chats - discovered_chats)}
 • Active Users: {active_users}
 • Questions Loaded: {total_questions}
 • Stats Updated: ✅
@@ -831,7 +766,7 @@ class TelegramQuizBot:
                 )
                 logger.info("Reload completed successfully")
 
-                # Schedule new quiz delivery
+                # Schedule quiz delivery for active chats
                 await self.send_automated_quiz(context)
 
             except Exception as e:

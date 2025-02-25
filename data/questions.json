@@ -1,1 +1,482 @@
-[]
+[
+  {
+    "question": "Who is the Supreme Commander of the Indian Armed Forces?",
+    "options": [
+      "President of India",
+      "Prime Minister of India",
+      "Chief of Defence Staff",
+      "Defence Minister"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the largest river in India by volume?",
+    "options": [
+      "Ganga",
+      "Brahmaputra",
+      "Godavari",
+      "Yamuna"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Where is the headquarters of the Indian Army located?",
+    "options": [
+      "New Delhi",
+      "Mumbai",
+      "Kolkata",
+      "Chennai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Prime Minister of India?",
+    "options": [
+      "Jawaharlal Nehru",
+      "Mahatma Gandhi",
+      "Sardar Patel",
+      "B.R. Ambedkar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian state is known as the 'Land of Five Rivers'?",
+    "options": [
+      "Punjab",
+      "Haryana",
+      "Rajasthan",
+      "Uttar Pradesh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the capital of Jharkhand?",
+    "options": [
+      "Ranchi",
+      "Patna",
+      "Bhubaneswar",
+      "Raipur"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian festival is known as the 'Festival of Lights'?",
+    "options": [
+      "Holi",
+      "Diwali",
+      "Eid",
+      "Christmas"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the longest dam in India?",
+    "options": [
+      "Hirakud Dam",
+      "Bhakra Nangal Dam",
+      "Tehri Dam",
+      "Sardar Sarovar Dam"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The first battle of Panipat was fought in which year?",
+    "options": [
+      "1526",
+      "1556",
+      "1761",
+      "1857"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the currency of India?",
+    "options": [
+      "Dollar",
+      "Rupee",
+      "Yen",
+      "Pound"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who among the following is known as the 'Iron Man of India'?",
+    "options": [
+      "Jawaharlal Nehru",
+      "Sardar Patel",
+      "Subhash Chandra Bose",
+      "Bhagat Singh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which is the smallest state in India by area?",
+    "options": [
+      "Goa",
+      "Sikkim",
+      "Tripura",
+      "Nagaland"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the founder of the Maurya Empire?",
+    "options": [
+      "Ashoka",
+      "Chandragupta Maurya",
+      "Bindusara",
+      "Harshavardhana"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which river is also called the 'Sorrow of Bihar'?",
+    "options": [
+      "Ganga",
+      "Kosi",
+      "Yamuna",
+      "Brahmaputra"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which organization is responsible for India's space programs?",
+    "options": [
+      "ISRO",
+      "DRDO",
+      "NASA",
+      "BARC"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Parliament of India consists of how many houses?",
+    "options": [
+      "One",
+      "Two",
+      "Three",
+      "Four"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "In which year did India gain independence?",
+    "options": [
+      "1945",
+      "1947",
+      "1950",
+      "1962"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Sundarbans forest is famous for which animal?",
+    "options": [
+      "Asiatic Lion",
+      "Bengal Tiger",
+      "Indian Elephant",
+      "Snow Leopard"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Where is the Konark Sun Temple located?",
+    "options": [
+      "Odisha",
+      "Rajasthan",
+      "Tamil Nadu",
+      "Maharashtra"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first woman Prime Minister of India?",
+    "options": [
+      "Indira Gandhi",
+      "Pratibha Patil",
+      "Sarojini Naidu",
+      "Sonia Gandhi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The largest desert in India is?",
+    "options": [
+      "Thar Desert",
+      "Rann of Kutch",
+      "Ladakh Desert",
+      "Deccan Plateau"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Chipko Movement was related to?",
+    "options": [
+      "Forest Conservation",
+      "River Conservation",
+      "Wildlife Protection",
+      "Industrial Development"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Where is the Indian Navy headquarters located?",
+    "options": [
+      "New Delhi",
+      "Mumbai",
+      "Kochi",
+      "Vishakhapatnam"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The GST was introduced in which year in India?",
+    "options": [
+      "2015",
+      "2016",
+      "2017",
+      "2018"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who is known as the 'Missile Man of India'?",
+    "options": [
+      "A.P.J. Abdul Kalam",
+      "Vikram Sarabhai",
+      "Homi Bhabha",
+      "Rakesh Sharma"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Tropic of Cancer passes through how many Indian states?",
+    "options": [
+      "5",
+      "7",
+      "8",
+      "9"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who wrote the Indian National Anthem?",
+    "options": [
+      "Bankim Chandra Chattopadhyay",
+      "Rabindranath Tagore",
+      "Sarojini Naidu",
+      "Subramania Bharati"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Bhakra Nangal Dam is built on which river?",
+    "options": [
+      "Sutlej",
+      "Ganga",
+      "Godavari",
+      "Narmada"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Indian Air Force Day is celebrated on?",
+    "options": [
+      "15th August",
+      "8th October",
+      "4th December",
+      "26th January"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Indian Constitution came into effect on?",
+    "options": [
+      "26th January 1950",
+      "15th August 1947",
+      "2nd October 1949",
+      "1st November 1956"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the capital of Uttarakhand?",
+    "options": [
+      "Dehradun",
+      "Shimla",
+      "Lucknow",
+      "Jaipur"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Kumbh Mela is held every how many years?",
+    "options": [
+      "3",
+      "6",
+      "12",
+      "10"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who is known as the 'Father of the Indian Constitution'?",
+    "options": [
+      "B.R. Ambedkar",
+      "Rajendra Prasad",
+      "Jawaharlal Nehru",
+      "Mahatma Gandhi"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the official language of the Indian government?",
+    "options": [
+      "English",
+      "Hindi",
+      "Sanskrit",
+      "Tamil"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indian state has the longest coastline?",
+    "options": [
+      "Gujarat",
+      "Maharashtra",
+      "Tamil Nadu",
+      "Andhra Pradesh"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "In which city is the Gateway of India located?",
+    "options": [
+      "Mumbai",
+      "Delhi",
+      "Chennai",
+      "Kolkata"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first President of India?",
+    "options": [
+      "Rajendra Prasad",
+      "S. Radhakrishnan",
+      "Zakir Hussain",
+      "Neelam Sanjiva Reddy"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Gir National Park is famous for?",
+    "options": [
+      "Tigers",
+      "Lions",
+      "Elephants",
+      "Rhinos"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the total number of districts in India (as of 2024)?",
+    "options": [
+      "700",
+      "775",
+      "780",
+      "762"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The RBI was established in which year?",
+    "options": [
+      "1935",
+      "1947",
+      "1950",
+      "1962"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Sardar Sarovar Dam is built on which river?",
+    "options": [
+      "Ganga",
+      "Yamuna",
+      "Narmada",
+      "Brahmaputra"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the state animal of Madhya Pradesh?",
+    "options": [
+      "Tiger",
+      "Leopard",
+      "Elephant",
+      "Rhino"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian to travel in space?",
+    "options": [
+      "Rakesh Sharma",
+      "Kalpana Chawla",
+      "Sunita Williams",
+      "Vikram Sarabhai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "What is the capital of Arunachal Pradesh?",
+    "options": [
+      "Itanagar",
+      "Dispur",
+      "Agartala",
+      "Kohima"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Chola dynasty was famous for?",
+    "options": [
+      "Maritime Trade",
+      "Architecture",
+      "Literature",
+      "All of the above"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Governor-General of independent India?",
+    "options": [
+      "C. Rajagopalachari",
+      "Mountbatten",
+      "Warren Hastings",
+      "Dalhousie"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Kaziranga National Park is famous for?",
+    "options": [
+      "Lions",
+      "Elephants",
+      "One-Horned Rhinos",
+      "Tigers"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "In which year did the 73rd Constitutional Amendment Act (Panchayati Raj) pass?",
+    "options": [
+      "1985",
+      "1990",
+      "1992",
+      "1995"
+    ],
+    "correct_answer": 0
+  }
+]

@@ -5,14 +5,15 @@
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Get detailed statistics
-            stats = self.quiz_manager.get_global_statistics()
-            if not stats:
-                await update.message.reply_text("❌ Error retrieving statistics.")
-                return
+            # Get basic stats with error handling
+            try:
+                stats = self.quiz_manager.get_global_statistics()
+                if not stats:
+                    await update.message.reply_text("❌ Error retrieving statistics.")
+                    return
 
-            # Format the statistics message
-            stats_message = f"""📊 𝗚𝗹𝗼𝗯𝗮𝗹 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀 𝗥𝗲𝗽𝗼𝗿𝘁
+                # Format the statistics message
+                stats_message = f"""📊 𝗚𝗹𝗼𝗯𝗮𝗹 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀 𝗥𝗲𝗽𝗼𝗿𝘁
 ════════════════
 👤 𝗨𝘀𝗲𝗿 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
 • Total Users: {stats['users']['total']:,}
@@ -40,11 +41,15 @@
 ════════════════
 🔄 Real-time stats | Auto-updates"""
 
-            await update.message.reply_text(
-                stats_message,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            logger.info(f"Displayed global stats to developer {update.effective_user.id}")
+                await update.message.reply_text(
+                    stats_message,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.info(f"Displayed global stats to developer {update.effective_user.id}")
+
+            except Exception as e:
+                logger.error(f"Error processing statistics: {e}\n{traceback.format_exc()}")
+                raise
 
         except Exception as e:
             logger.error(f"Error in globalstats: {e}\n{traceback.format_exc()}")
