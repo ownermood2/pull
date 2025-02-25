@@ -700,7 +700,7 @@ class TelegramQuizBot:
 
 ⚡ 𝗥𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝗠𝗲𝘁𝗿𝗶𝗰𝘀
 • Active Groups Now: {len([c for c in active_chats if self.quiz_manager.get_group_last_activity(c) == current_date])}
-• Questions Added Today: {self.quiz_manager.get_questions_added_today()}
+• Total Questions: {len(self.quiz_manager.questions)}
 ════════════════"""
 
             try:
@@ -742,7 +742,7 @@ class TelegramQuizBot:
                     leaderboard_text += f"""
 
 {medals[rank-1]} {username}
-   ✅ Total: {entry['total_attempts']}```python
+   ✅ Total: {entry['total_attempts']}
    🎯 Correct: {entry['correct_answers']}
    ❌ Wrong: {entry['wrong_answers']}
    📊 Accuracy: {entry['accuracy']}%"""
@@ -759,8 +759,7 @@ class TelegramQuizBot:
             except Exception as e:
                 logger.error(f"Failed to send leaderboard with markdown: {e}")
                 # Fallback to plain text if markdown fails
-                plain_text = leaderboard_text.replace('𝗚', 'G').replace('𝗟', 'L')\
-                    .replace('═', '=')
+                plain_text = leaderboard_text.replace('𝗚', 'G').replace('𝗟', 'L').replace('═', '=')
                 await update.message.reply_text(plain_text)
 
         except Exception as e:
@@ -975,7 +974,7 @@ class TelegramQuizBot:
 
 ⚡ 𝗥𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝗠𝗲𝘁𝗿𝗶𝗰𝘀
 • Active Groups Now: {len([c for c in active_chats if self.quiz_manager.get_group_last_activity(c) == current_date])}
-• Questions Added Today: {self.quiz_manager.get_questions_added_today()}
+• Total Questions: {len(self.quiz_manager.questions)}
 ════════════════"""
 
             try:
