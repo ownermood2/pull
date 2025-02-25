@@ -39,8 +39,14 @@ def health():
 
 def run():
     """Run Flask server"""
-    # Using port 5000 as required by Replit
-    keep_alive_app.run(host='0.0.0.0', port=5000, use_reloader=False)
+    try:
+        # Using port 5000 as required by Replit
+        keep_alive_app.run(host='0.0.0.0', port=5000, use_reloader=False)
+    except Exception as e:
+        logger.error(f"Failed to start Flask server: {e}")
+        # Instead of raising, we want to keep trying
+        time.sleep(5)
+        run()  # Recursive retry
 
 def ping_server():
     """Ping server every minute to keep it alive"""
@@ -72,51 +78,17 @@ def ping_server():
 
         time.sleep(60)  # Check every minute
 
-def monitor_memory():
-    """Monitor and manage memory usage"""
-    memory_threshold = 500  # MB
-    consecutive_high_memory = 0
-    max_high_memory = 3
-
-    while True:
-        try:
-            process = psutil.Process(os.getpid())
-            memory_usage = process.memory_info().rss / 1024 / 1024  # Convert to MB
-
-            if memory_usage > memory_threshold:
-                consecutive_high_memory += 1
-                logger.warning(f"High memory usage detected: {memory_usage}MB (occurrence {consecutive_high_memory})")
-
-                # Trigger garbage collection
-                import gc
-                gc.collect()
-
-                if consecutive_high_memory >= max_high_memory:
-                    logger.critical("Persistent high memory usage, triggering restart...")
-                    os._exit(1)  # Force restart through process manager
-            else:
-                consecutive_high_memory = 0
-
-            logger.info(f"Current memory usage: {memory_usage}MB")
-        except Exception as e:
-            logger.error(f"Error monitoring memory: {e}")
-
-        time.sleep(300)  # Check every 5 minutes
-
 def keep_alive():
     """Start the keep-alive server and monitoring threads"""
     try:
         server_thread = threading.Thread(target=run)
         ping_thread = threading.Thread(target=ping_server)
-        memory_thread = threading.Thread(target=monitor_memory)
 
         server_thread.daemon = True
         ping_thread.daemon = True
-        memory_thread.daemon = True
 
         server_thread.start()
         ping_thread.start()
-        memory_thread.start()
 
         logger.info("Keep-alive server and monitoring started")
     except Exception as e:

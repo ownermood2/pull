@@ -499,7 +499,7 @@ class TelegramQuizBot:
 
 
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show user's personal stats"""
+        """Show detailed personal statistics"""
         try:
             user = update.effective_user
             if not user:
@@ -509,14 +509,23 @@ class TelegramQuizBot:
 
             logger.info(f"Processing /mystats command for user {user.id} ({user.first_name})")
 
-            # Get user stats
+            # Get detailed user stats
             stats = self.quiz_manager.get_user_stats(user.id)
-            if stats is None:
-                logger.error(f"Quiz manager returned None for user {user.id}")
-                await update.message.reply_text("Failed to retrieve stats. Please try again later.")
+            if not stats:
+                await update.message.reply_text("No quiz history found. Start taking quizzes to see your stats! 🎯")
                 return
 
-            # Format the message
+            # Calculate streaks and achievements
+            current_streak = stats.get('current_streak', 0)
+            best_streak = stats.get('best_streak', 0)
+            achievements = []
+            if stats['correct_answers'] >= 100:
+                achievements.append("🏆 Quiz Master")
+            if current_streak >= 7:
+                achievements.append("🔥 Week Warrior")
+            if stats['success_rate'] >= 80:
+                achievements.append("⭐ Accuracy Expert")
+
             stats_message = f"""📊 𝗤𝘂𝗶𝘇 𝗠𝗮𝘀𝘁𝗲𝗿 𝗣𝗲𝗿𝘀𝗼𝗻𝗮𝗹 𝗦𝘁𝗮𝘁𝘀
 ════════════════
 👤 {user.first_name}
@@ -527,37 +536,47 @@ class TelegramQuizBot:
 • Success Rate: {stats['success_rate']}%
 • Current Score: {stats['current_score']}
 
+🔥 𝗦𝘁𝗿𝗲𝗮𝗸𝘀
+• Current Streak: {current_streak} days
+• Best Streak: {best_streak} days
+
 📈 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
 • Today: {stats['today_quizzes']} quizzes
 • This Week: {stats['week_quizzes']} quizzes
 • This Month: {stats['month_quizzes']} quizzes
 
-Use /help to see all available commands! 🎮"""
+🏆 𝗔𝗰𝗵𝗶𝗲𝘃𝗲𝗺𝗲𝗻𝘁𝘀
+{chr(10).join(achievements) if achievements else "Keep playing to earn achievements!"}
+════════════════"""
 
-            await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
-            logger.info(f"Successfully sent stats to user {user.id}")
+            try:
+                await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
+                logger.info(f"Personal stats shown to user {user.id}")
+            except Exception as e:
+                logger.error(f"Failed to send stats with markdown: {e}")
+                # Fallback to plain text if markdown fails
+                plain_text = stats_message.replace('𝗤', 'Q').replace('𝗠', 'M').replace('𝗣', 'P')\
+                    .replace('𝗦', 'S').replace('𝗔', 'A').replace('═', '=').replace('•', '*')
+                await update.message.reply_text(plain_text)
 
         except Exception as e:
-            logger.error(f"Error in mystats command: {str(e)}\n{traceback.format_exc()}")
-            await update.message.reply_text("An error occurred while retrieving your stats. Please try again.")
+            logger.error(f"Error in mystats: {str(e)}\n{traceback.format_exc()}")
+            await update.message.reply_text("❌ Error retrieving your stats. Please try again.")
 
     async def groupstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show comprehensive group performance stats - only works in groups"""
+        """Show comprehensive group performance statistics"""
         try:
             chat = update.effective_chat
-
-            # Check if command is used in a group
             if not chat.type.endswith('group'):
-                await update.message.reply_text("This command only works in groups! 👥", parse_mode=ParseMode.MARKDOWN)
+                await update.message.reply_text("This command only works in groups! 👥")
                 return
 
             stats = self.quiz_manager.get_group_leaderboard(chat.id)
-
             if not stats['leaderboard']:
-                await update.message.reply_text("No quiz participants in this group yet! Start taking quizzes to appear here! 🎯", parse_mode=ParseMode.MARKDOWN)
+                await update.message.reply_text("No quiz participants in this group yet! Start taking quizzes to appear here! 🎯")
                 return
 
-            # Header with group analytics
+            # Build comprehensive stats message
             stats_message = f"""📊 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀 - {chat.title}
 ════════════════
 
@@ -565,6 +584,7 @@ Use /help to see all available commands! 🎮"""
 • Total Quizzes: {stats['total_quizzes']}
 • Correct Answers: {stats['total_correct']}
 • Group Accuracy: {stats['group_accuracy']}%
+• Active Streak: {stats.get('group_streak', 0)} days
 
 👥 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗶𝗻𝗚
 • Active Today: {stats['active_users']['today']} users
@@ -574,28 +594,129 @@ Use /help to see all available commands! 🎮"""
 
 🏆 𝗧𝗼𝗽 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗲𝗿𝘀"""
 
-            # Add top performers
+            # Add top performers with detailed stats
             for rank, entry in enumerate(stats['leaderboard'][:5], 1):
                 try:
                     user = await context.bot.get_chat(entry['user_id'])
                     username = user.first_name or user.username or "Anonymous"
+                    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+                    stats_message += f"""
 
-                    stats_message += f"\n\n{rank}. {username}"
-                    stats_message += f"\n   ✅ Total: {entry['total_attempts']} quizzes"
-                    stats_message += f"\n   🎯 Correct: {entry['correct_answers']}"
-                    stats_message += f"\n   📊 Accuracy: {entry['accuracy']}%"
-                    stats_message += f"\n   🔥 Streak: {entry.get('current_streak', 0)}"
-                    stats_message += f"\n   ⚡ Last Active: {entry['last_active']}"
+{medals[rank-1]} {username}
+   ✅ Total: {entry['total_attempts']} quizzes
+   🎯 Correct: {entry['correct_answers']}
+   📊 Accuracy: {entry['accuracy']}%
+   🔥 Streak: {entry.get('current_streak', 0)}
+   ⚡ Last Active: {entry['last_active']}"""
                 except Exception as e:
                     logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
                     continue
 
             stats_message += "\n\n📱 Real-time stats | Auto-updates every 20 min"
-            await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
+            stats_message += "\n════════════════"
+
+            try:
+                await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
+                logger.info(f"Group stats shown in chat {chat.id}")
+            except Exception as e:
+                logger.error(f"Failed to send stats with markdown: {e}")
+                # Fallback to plain text if markdown fails
+                plain_text = stats_message.replace('𝗚', 'G').replace('𝗦', 'S').replace('𝗣', 'P')\
+                    .replace('𝗔', 'A').replace('𝗧', 'T').replace('═', '=').replace('•', '*')
+                await update.message.reply_text(plain_text)
 
         except Exception as e:
-            logger.error(f"Error getting group stats: {e}")
-            await update.message.reply_text("Error retrieving group stats. Please try again.")
+            logger.error(f"Error in groupstats: {e}\n{traceback.format_exc()}")
+            await update.message.reply_text("❌ Error retrieving group stats. Please try again.")
+
+    async def globalstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Show comprehensive bot statistics - Developer only"""
+        try:
+            if not await self.is_developer(update.message.from_user.id):
+                await self._handle_dev_command_unauthorized(update)
+                return
+
+            # Get basic stats
+            active_chats = self.quiz_manager.get_active_chats()
+            total_users = len(self.quiz_manager.stats)
+            total_groups = len(active_chats)
+
+            # Calculate time-based metrics
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            today_active_users = sum(
+                1 for stats in self.quiz_manager.stats.values()
+                if stats.get('last_activity_date') == current_date
+            )
+
+            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+            week_active_users = sum(
+                1 for stats in self.quiz_manager.stats.values()
+                if stats.get('last_activity_date', '1970-01-01') >= week_start
+            )
+
+            # Calculate quiz statistics
+            today_quizzes = sum(
+                stats['daily_activity'].get(current_date, {}).get('attempts', 0)
+                for stats in self.quiz_manager.stats.values()
+            )
+
+            week_quizzes = sum(
+                sum(
+                    day_stats.get('attempts', 0)
+                    for date, day_stats in stats['daily_activity'].items()
+                    if date >= week_start
+                )
+                for stats in self.quiz_manager.stats.values()
+            )
+
+            # Calculate success rates
+            total_attempts = sum(
+                stats.get('total_quizzes', 0)
+                for stats in self.quiz_manager.stats.values()
+            )
+            correct_answers = sum(
+                stats.get('correct_answers', 0)
+                for stats in self.quiz_manager.stats.values()
+            )
+            success_rate = (
+                round((correct_answers / total_attempts) * 100, 2)
+                if total_attempts > 0 else 0
+            )
+
+            stats_message = f"""📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
+════════════════
+👥 𝗨𝘀𝗲𝗿𝘀 & 𝗚𝗿𝗼𝘂𝗽𝘀
+• Total Users: {total_users}
+• Total Groups: {total_groups}
+• Active Today: {today_active_users}
+• Active This Week: {week_active_users}
+
+📈 𝗤𝘂𝗶𝘇 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
+• Today's Quizzes: {today_quizzes}
+• This Week: {week_quizzes}
+• Total Attempts: {total_attempts}
+• Correct Answers: {correct_answers}
+• Success Rate: {success_rate}%
+
+⚡ 𝗥𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝗠𝗲𝘁𝗿𝗶𝗰𝘀
+• Active Groups Now: {len([c for c in active_chats if self.quiz_manager.get_group_last_activity(c) == current_date])}
+• Questions Added Today: {self.quiz_manager.get_questions_added_today()}
+════════════════"""
+
+            try:
+                await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
+                logger.info(f"Global stats shown to developer {update.effective_user.id}")
+            except Exception as e:
+                logger.error(f"Failed to send stats with markdown: {e}")
+                # Fallback to plain text if markdown fails
+                plain_text = stats_message.replace('𝗕', 'B').replace('𝗨', 'U').replace('𝗚', 'G')\
+                    .replace('𝗤', 'Q').replace('𝗔', 'A').replace('𝗥', 'R').replace('𝗠', 'M')\
+                    .replace('═', '=').replace('•', '*')
+                await update.message.reply_text(plain_text)
+
+        except Exception as e:
+            logger.error(f"Error in globalstats: {e}\n{traceback.format_exc()}")
+            await update.message.reply_text("❌ Error retrieving global statistics. Please try again.")
 
     async def leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show global leaderboard"""
@@ -607,28 +728,44 @@ Use /help to see all available commands! 🎮"""
                 return
 
             # Header
-            leaderboard_text = "   🏆 All-Time Quiz Champions\n\n"
+            leaderboard_text = """🏆 𝗚𝗹𝗼𝗯𝗮𝗹 𝗟𝗲𝗮𝗱𝗲𝗿𝗯𝗼𝗮𝗿𝗱
+════════════════"""
 
             # Get user info for each leaderboard entry
-            for rank, entry in enumerate(leaderboard, 1):
+            for rank, entry in enumerate(leaderboard[:10], 1):
                 try:
                     # Get user info from Telegram
                     user = await context.bot.get_chat(entry['user_id'])
                     username = user.first_name or user.username or "Anonymous"
 
-                    leaderboard_text += f"   🏅 {rank}. {username}\n"
-                    leaderboard_text += f"      ✅ Attend: {entry['total_attempts']}\n"
-                    leaderboard_text += f"      🎯 Correct: {entry['correct_answers']}\n"
-                    leaderboard_text += f"      ❌ Wrong: {entry['wrong_answers']}\n"
-                    leaderboard_text += f"      📊 Accuracy: {entry['accuracy']}%\n\n"
+                    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+                    leaderboard_text += f"""
+
+{medals[rank-1]} {username}
+   ✅ Total: {entry['total_attempts']}```python
+   🎯 Correct: {entry['correct_answers']}
+   ❌ Wrong: {entry['wrong_answers']}
+   📊 Accuracy: {entry['accuracy']}%"""
                 except Exception as e:
                     logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
                     continue
 
-            await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN)
+            leaderboard_text += "\n\n📱 Real-time rankings | Auto-updates every quiz"
+            leaderboard_text += "\n════════════════"
+
+            try:
+                await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN)
+                logger.info(f"Leaderboard shown for user {update.effective_user.id}")
+            except Exception as e:
+                logger.error(f"Failed to send leaderboard with markdown: {e}")
+                # Fallback to plain text if markdown fails
+                plain_text = leaderboard_text.replace('𝗚', 'G').replace('𝗟', 'L')\
+                    .replace('═', '=')
+                await update.message.reply_text(plain_text)
+
         except Exception as e:
-            logger.error(f"Error showing leaderboard: {e}")
-            await update.message.reply_text("Error retrieving leaderboard.")
+            logger.error(f"Error showing leaderboard: {e}\n{traceback.format_exc()}")
+            await update.message.reply_text("❌ Error retrieving leaderboard. Please try again.")
 
     async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Full bot restart - Developer only"""
@@ -768,54 +905,93 @@ Use /help to see all available commands! 🎮"""
             await update.message.reply_text("❌ Error adding quiz.")
 
     async def globalstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show bot statistics - Developer only"""
+        """Show comprehensive bot statistics - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
 
+            # Get basic stats
             active_chats = self.quiz_manager.get_active_chats()
             total_users = len(self.quiz_manager.stats)
             total_groups = len(active_chats)
 
-            stats = self.quiz_manager.get_global_stats()
-
-            response = """📊 Bot Statistics  
-• Users & Groups
-  - Total Users: {}
-  - Total Groups: {}
-  - Active Today: {}
-  - Active This Week: {}
-
-• Quiz Stats
-  - Total Quizzes: {}
-  - Quizzes Today: {}
-  - Average Score: {}%
-  - Success Rate: {}%
-
-• Engagement
-  - Questions Added: {}
-  - Total Attempts: {}
-  - Correct Answers: {}""".format(
-                total_users,
-                total_groups,
-                stats['active_today'],
-                stats['active_week'],
-                stats['total_quizzes'],
-                stats['quizzes_today'],
-                stats['avg_score'],
-                stats['success_rate'],
-                stats['questions_added'],
-                stats['total_attempts'],
-                stats['correct_answers']
+            # Calculate time-based metrics
+            current_date = datetime.now().strftime('%Y-%m-%d')
+            today_active_users = sum(
+                1 for stats in self.quiz_manager.stats.values()
+                if stats.get('last_activity_date') == current_date
             )
 
-            await update.message.reply_text(response, parse_mode=None)
-            logger.info(f"Global stats shown to developer {update.effective_user.id}")
+            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+            week_active_users = sum(
+                1 for stats in self.quiz_manager.stats.values()
+                if stats.get('last_activity_date', '1970-01-01') >= week_start
+            )
+
+            # Calculate quiz statistics
+            today_quizzes = sum(
+                stats['daily_activity'].get(current_date, {}).get('attempts', 0)
+                for stats in self.quiz_manager.stats.values()
+            )
+
+            week_quizzes = sum(
+                sum(
+                    day_stats.get('attempts', 0)
+                    for date, day_stats in stats['daily_activity'].items()
+                    if date >= week_start
+                )
+                for stats in self.quiz_manager.stats.values()
+            )
+
+            # Calculate success rates
+            total_attempts = sum(
+                stats.get('total_quizzes', 0)
+                for stats in self.quiz_manager.stats.values()
+            )
+            correct_answers = sum(
+                stats.get('correct_answers', 0)
+                for stats in self.quiz_manager.stats.values()
+            )
+            success_rate = (
+                round((correct_answers / total_attempts) * 100, 2)
+                if total_attempts > 0 else 0
+            )
+
+            stats_message = f"""📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
+════════════════
+👥 𝗨𝘀𝗲𝗿𝘀 & 𝗚𝗿𝗼𝘂𝗽𝘀
+• Total Users: {total_users}
+• Total Groups: {total_groups}
+• Active Today: {today_active_users}
+• Active This Week: {week_active_users}
+
+📈 𝗤𝘂𝗶𝘇 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
+• Today's Quizzes: {today_quizzes}
+• This Week: {week_quizzes}
+• Total Attempts: {total_attempts}
+• Correct Answers: {correct_answers}
+• Success Rate: {success_rate}%
+
+⚡ 𝗥𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝗠𝗲𝘁𝗿𝗶𝗰𝘀
+• Active Groups Now: {len([c for c in active_chats if self.quiz_manager.get_group_last_activity(c) == current_date])}
+• Questions Added Today: {self.quiz_manager.get_questions_added_today()}
+════════════════"""
+
+            try:
+                await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
+                logger.info(f"Global stats shown to developer {update.effective_user.id}")
+            except Exception as e:
+                logger.error(f"Failed to send stats with markdown: {e}")
+                # Fallback to plain text if markdown fails
+                plain_text = stats_message.replace('𝗕', 'B').replace('𝗨', 'U').replace('𝗚', 'G')\
+                    .replace('𝗤', 'Q').replace('𝗔', 'A').replace('𝗥', 'R').replace('𝗠', 'M')\
+                    .replace('═', '=').replace('•', '*')
+                await update.message.reply_text(plain_text)
 
         except Exception as e:
-            logger.error(f"Error showing global stats: {e}")
-            await update.message.reply_text("Error retrieving global statistics.")
+            logger.error(f"Error in globalstats: {e}\n{traceback.format_exc()}")
+            await update.message.reply_text("❌ Error retrieving global statistics. Please try again.")
 
     async def editquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show and edit quiz questions - Developer only"""
