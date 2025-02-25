@@ -731,43 +731,56 @@ class TelegramQuizBot:
             await update.message.reply_text("❌ Error retrieving global statistics. Please try again.")
 
     async def leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show global leaderboard"""
+        """Show global leaderboard with top 10 performers"""
         try:
+            # Get leaderboard data
             leaderboard = self.quiz_manager.get_leaderboard()
 
+            # Header with description
+            leaderboard_text = f"""🏆 𝗚𝗹𝗼𝗯𝗮𝗹 𝗟𝗲𝗮𝗱𝗲𝗿𝗯𝗼𝗮𝗿𝗱
+════════════════
+📊 Top 10 Quiz Champions\n"""
+
+            # If no participants yet
             if not leaderboard:
-                await update.message.reply_text("No quiz participants yet! Be the first one to start! 🎯", parse_mode=ParseMode.MARKDOWN)
+                leaderboard_text += "\n🎯 No participants yet! Be the first champion!"
+                await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN)
                 return
 
-            # Header
-            leaderboard_text = """🏆 𝗚𝗹𝗼𝗯𝗮𝗹 𝗟𝗲𝗮𝗱𝗲𝗿𝗯𝗼𝗮𝗿𝗱
-════════════════"""
-
-            # Get user info for each leaderboard entry
+            # Add each user's stats
             for rank, entry in enumerate(leaderboard[:10], 1):
                 try:
-                    # Get userinfo from Telegram
+                    # Get user info from Telegram
                     user = await context.bot.get_chat(entry['user_id'])
                     username = user.first_name or user.username or "Anonymous"
 
-                    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
-                    leaderboard_text += f"""
+                    # Rank emojis
+                    medals = ["🥇", "🥈", "🥉"]
+                    rank_emoji = medals[rank-1] if rank <= 3 else f"{rank}️⃣"
 
-{medals[rank-1]} {username}
-   ✅ Total: {entry['total_attempts']}
-   🎯 Correct: {entry['correct_answers']}
-   ❌ Wrong: {entry['wrong_answers']}
-   📊 Accuracy: {entry['accuracy']}%"""
+                    # Add user stats with better formatting
+                    leaderboard_text += f"""
+{rank_emoji} {username}
+┣ 📝 Score: {entry['score']} points
+┣ ✅ Total Quizzes: {entry['total_attempts']}
+┣ 🎯 Correct: {entry['correct_answers']}
+┣ 📊 Accuracy: {entry['accuracy']}%
+┣ 🔥 Current Streak: {entry['current_streak']}
+┗ 👑 Best Streak: {entry['longest_streak']}
+"""
                 except Exception as e:
                     logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
                     continue
 
-            leaderboard_text += "\n\n📱 Real-time rankings | Auto-updates every quiz"
-            leaderboard_text += "\n════════════════"
+            # Footer with real-time info
+            leaderboard_text += """
+📱 Rankings update in real-time
+🎮 Use /quiz to climb the ranks!
+════════════════"""
 
             try:
                 await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN)
-                logger.info(f"Leaderboard shown for user {update.effective_user.id}")
+                logger.info(f"Leaderboard shown successfully")
             except Exception as e:
                 logger.error(f"Failed to send leaderboard with markdown: {e}")
                 # Fallback to plain text if markdown fails
@@ -1577,7 +1590,7 @@ Please try again later.
         """Show total number of quizzes - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
-                await self._handle_dev_command_unauthorized(update)
+                awaitself._handle_dev_command_unauthorized(update)
                 return
 
             ## Force reload questions
