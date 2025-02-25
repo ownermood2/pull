@@ -183,7 +183,7 @@ class QuizManager:
             raise
 
     def _init_user_stats(self, user_id: str) -> None:
-        """Initialize stats for a new user"""
+        """Initialize stats for a new user with enhanced tracking"""
         current_date = datetime.now().strftime('%Y-%m-%d')
         self.stats[user_id] = {
             'total_quizzes': 0,
@@ -199,7 +199,13 @@ class QuizManager:
                 }
             },
             'last_quiz_date': current_date,
-            'groups': {}
+            'last_activity_date': current_date,
+            'join_date': current_date,
+            'groups': {},
+            'private_chat_activity': {
+                'total_messages': 0,
+                'last_active': current_date
+            }
         }
 
     def get_user_stats(self, user_id: int) -> Dict:
@@ -1018,18 +1024,26 @@ class QuizManager:
             logger.error(f"Error tracking user activity: {e}")
 
     def get_active_users(self) -> List[str]:
-        """Get list of active users"""
+        """Get list of active users with improved tracking"""
         try:
             current_date = datetime.now().strftime('%Y-%m-%d')
             week_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
 
             active_users = set()
 
-            # Check user activity
+            # Check all activity types
             for user_id, stats in self.stats.items():
+                # Check last activity date
                 last_activity = stats.get('last_activity_date')
                 if last_activity and last_activity >= week_start:
                     active_users.add(user_id)
+                    continue
+
+                # Check private chat activity
+                private_chat = stats.get('private_chat_activity', {})
+                if private_chat.get('last_active', '') >= week_start:
+                    active_users.add(user_id)
+                    continue
 
                 # Check group activity
                 for group_stats in stats.get('groups', {}).values():
@@ -1043,7 +1057,7 @@ class QuizManager:
             return []
 
     def update_all_stats(self) -> None:
-        """Update all statistics in real-time"""
+        """Update all statistics in real-time with enhanced tracking"""
         try:
             current_date = datetime.now().strftime('%Y-%m-%d')
             week_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
@@ -1051,6 +1065,17 @@ class QuizManager:
             # Update user stats
             for user_id, stats in self.stats.items():
                 try:
+                    # Ensure required fields exist
+                    if 'join_date' not in stats:
+                        stats['join_date'] = current_date
+                    if 'last_activity_date' not in stats:
+                        stats['last_activity_date'] = current_date
+                    if 'private_chat_activity' not in stats:
+                        stats['private_chat_activity'] = {
+                            'total_messages': 0,
+                            'last_active': current_date
+                        }
+
                     # Ensure daily activity exists
                     if current_date not in stats['daily_activity']:
                         stats['daily_activity'][current_date] = {
