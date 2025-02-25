@@ -416,38 +416,50 @@ class TelegramQuizBot:
             # Check if user is developer
             is_dev = await self.is_developer(update.message.from_user.id)
 
-            help_text = """📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
-════════════════
-🎯 𝗚𝗘𝗡𝗘𝗥𝗔𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
-/start – Begin your quiz journey  
-/help – Available commands  
-/category – View Topics
-/quiz – Try a quiz demo  
+            help_text = """📝 Commands  
+• /start – Begin quiz journey  
+• /help – Show commands  
+• /category – View Topics
+• /quiz – Try a quiz  
 
-📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗  
-/mystats - Your Performance 
-/groupstats – Your group performance   
-/leaderboard – See champions"""
+📊 Stats & Rankings  
+• /mystats - Your stats 
+• /groupstats – Group stats   
+• /leaderboard – Champions"""
 
             # Add developer commands only for developers
             if is_dev:
                 help_text += """
 
-🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦  
-/allreload – Full bot restart  
-/addquiz – Add new questions
-/globalstats – Bot stats   
-/editquiz – Modify quizzes  
-/broadcast – Send announcements
-/delquiz - Delete a quiz
-/totalquiz - Show total quizzes
-/clear_quizzes - Remove all quizzes"""
+🔒 Developer Commands  
+• /allreload – Bot restart  
+• /addquiz – Add questions
+• /globalstats – Bot stats   
+• /editquiz – Edit quizzes  
+• /broadcast – Send messages
+• /delquiz - Delete quiz
+• /totalquiz - Show quizzes
+• /clear_quizzes - Delete all"""
 
-            help_text += "\n════════════════"
-            await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
+            # Send help message with better error handling
+            try:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=help_text,
+                    parse_mode=None # Don't use markdown parsing
+                )
+                logger.info(f"Help message sent to user {update.effective_user.id}")
+            except Exception as e:
+                logger.error(f"Failed to send help message: {e}")
+                # Try sending without any formatting
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=help_text
+                )
+
         except Exception as e:
             logger.error(f"Error in help command: {e}")
-            await update.message.reply_text("Error showing help.")
+            await update.message.reply_text("Error showing help. Please try again later.")
 
     async def category(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /category command"""
@@ -755,75 +767,47 @@ Use /help to see all available commands! 🎮"""
                 return
 
             active_chats = self.quiz_manager.get_active_chats()
-            total_users = len(self.quiz_manager.stats)  # Fixed variable name
+            total_users = len(self.quiz_manager.stats)
             total_groups = len(active_chats)
 
-            # Calculate active users and groups today
-            current_date = datetime.now().strftime('%Y-%m-%d')
-            active_users_today = sum(
-                1 for stats in self.quiz_manager.stats.values()
-                if stats.get('last_quiz_date') == current_date
-            )
-            active_groups_today = sum(
-                1 for chat_id in active_chats
-                if any(
-                    stats.get('last_quiz_date') ==current_date
-                    for stats in self.quiz_manager.stats.values()
-                                        if str(chat_id) in stats.get('groups', {})
-                )
-            )
+            stats = self.quiz_manager.get_global_stats()
 
-            # Calculate quizzes over timeperiods
-            today_quizzes = sum(
-                stats['daily_activity'].get(current_date, {}).get('attempts', 0)
-                for stats in self.quiz_manager.stats.values()
-            )
+            response = """📊 Bot Statistics  
+• Users & Groups
+  - Total Users: {}
+  - Total Groups: {}
+  - Active Today: {}
+  - Active This Week: {}
 
-            # Calculate this week's quizzes
-            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
-            week_quizzes = sum(
-                day_stats.get('attempts', 0)
-                for stats in self.quiz_manager.stats.values()
-                for date, day_stats in stats['daily_activity'].items()
-                if date >= week_start
-            )
+• Quiz Stats
+  - Total Quizzes: {}
+  - Quizzes Today: {}
+  - Average Score: {}%
+  - Success Rate: {}%
 
-            # Calculate this month's quizzes
-            month_start = datetime.now().replace(day=1).strftime('%Y-%m-%d')
-            month_quizzes = sum(
-                day_stats.get('attempts', 0)
-                for stats in self.quiz_manager.stats.values()
-                for date, day_stats in stats['daily_activity'].items()
-                if date >= month_start
+• Engagement
+  - Questions Added: {}
+  - Total Attempts: {}
+  - Correct Answers: {}""".format(
+                total_users,
+                total_groups,
+                stats['active_today'],
+                stats['active_week'],
+                stats['total_quizzes'],
+                stats['quizzes_today'],
+                stats['avg_score'],
+                stats['success_rate'],
+                stats['questions_added'],
+                stats['total_attempts'],
+                stats['correct_answers']
             )
 
-            # Calculate all-time quizzes
-            all_time_quizzes = sum(
-                stats['total_quizzes']
-                for stats in self.quiz_manager.stats.values()
-            )
-
-            stats_message = f"""🌟 𝗚𝗹𝗼𝗯𝗮𝗹 𝗦𝘁𝗮𝘁𝘁𝗶𝘀𝘁𝗶𝗰𝘀  
-════════════════  
-🎯 𝗖𝗼𝗺𝗺𝘂𝗻𝗶𝘁𝘆 𝗜𝗻𝘀𝗶𝗴𝗵𝘁𝘀
-👥 Total Groups: {total_groups}  
-👤 Total Users: {total_users}  
-👥 Active Groups Today: {active_groups_today}  
-👤 Active Users Today: {active_users_today}  
-
-⚡ 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗲𝗥
-📅 QuizzesSent Today: {today_quizzes}  
-📆 This Week: {week_quizzes}  
-📊 This Month: {month_quizzes}  
-📌 All Time: {all_time_quizzes}  
-
-🚀 Keep the competition going! Use /help to explore more commands! 🎮"""
-
-            await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
+            await update.message.reply_text(response, parse_mode=None)
+            logger.info(f"Global stats shown to developer {update.effective_user.id}")
 
         except Exception as e:
-            logger.error(f"Error inglobalstats: {e}")
-            await update.message.reply_text("❌ Error retrieving global stats.")
+            logger.error(f"Error showing global stats: {e}")
+            await update.message.reply_text("Error retrieving global statistics.")
 
     async def editquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show and edit quiz questions - Developer only"""
@@ -924,7 +908,6 @@ To delete this quiz:
 • Showing: #{start_idx + 1} to #{min(end_idx, len(questions))}
 
 🎯 𝗤𝘂𝗶𝘇 𝗟𝗶𝘀𝘁:"""
-
             for i, q in enumerate(questions[start_idx:end_idx], start=start_idx + 1):
                 questions_text += f"""
 
@@ -1584,6 +1567,8 @@ Use /addquiz to add new questions.
 Quiz database remains unchanged.
 ════════════════"""
 
+            # Edit the confirmation message to show theresult
+
             # Edit the confirmation message to show the result
             await query.edit_message_text(
                 text=response,
@@ -1595,7 +1580,7 @@ Quiz database remains unchanged.
                 await asyncio.sleep(10)  # Wait 10 seconds
                 for msg_id in context.user_data['cleanup_messages']:
                     try:
-                        await context.bot.delete_message(chat_id=update.effective_chat.id,                                    message_id=msg_id)
+                        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=msg_id)
                     except Exception as e:
                         logger.error(f"Error deleting message {msg_id}: {e}")
                 context.user_data['cleanup_messages'] = []
