@@ -27,6 +27,235 @@ class TelegramQuizBot:
         self.COOLDOWN_PERIOD = 3  # seconds between commands
         self.command_history = defaultdict(lambda: deque(maxlen=10))  # Store last 10 commands per chat
         self.cleanup_interval = 3600  # 1 hour in seconds
+        self.cache = {}  # Add cache for frequently accessed data
+        self.cache_timeout = 300  # 5 minutes cache timeout
+        self.last_cache_update = datetime.now()
+        self.start_time = datetime.now()
+
+    async def _update_cache(self):
+        """Update cache with fresh data"""
+        try:
+            current_time = datetime.now()
+            if (current_time - self.last_cache_update).total_seconds() > self.cache_timeout:
+                self.cache = {
+                    'active_chats': self.quiz_manager.get_active_chats(),
+                    'total_questions': len(self.quiz_manager.get_all_questions()),
+                    'global_stats': self.quiz_manager.get_global_statistics()
+                }
+                self.last_cache_update = current_time
+                logger.info("Cache updated successfully")
+        except Exception as e:
+            logger.error(f"Error updating cache: {e}")
+
+    async def _get_cached_data(self, key):
+        """Get data from cache or update if expired"""
+        await self._update_cache()
+        return self.cache.get(key)
+
+    async def check_cooldown(self, user_id: int, command: str) -> bool:
+        """Enhanced cooldown check with better performance"""
+        try:
+            current_time = datetime.now().timestamp()
+            last_used = self.command_cooldowns[user_id][command]
+            if current_time - last_used < self.COOLDOWN_PERIOD:
+                return False
+            self.command_cooldowns[user_id][command] = current_time
+            return True
+        except Exception as e:
+            logger.error(f"Error in cooldown check: {e}")
+            return True  # Allow command if cooldown check fails
+
+    async def handle_answer(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Optimized answer handling with better performance"""
+        try:
+            answer = update.poll_answer
+            if not answer or not answer.poll_id or not answer.user:
+                return
+
+            # Get quiz data from context using proper key
+            poll_data = context.bot_data.get(f"poll_{answer.poll_id}")
+            if not poll_data:
+                return
+
+            # Check if this is a correct answer
+            is_correct = poll_data['correct_option_id'] in answer.option_ids
+            chat_id = poll_data['chat_id']
+
+            # Record the answer in poll_data
+            poll_data['user_answers'][answer.user.id] = {
+                'option_ids': answer.option_ids,
+                'is_correct': is_correct,
+                'timestamp': datetime.now().isoformat()
+            }
+
+            # Record both global and group-specific score
+            if is_correct:
+                self.quiz_manager.increment_score(answer.user.id)
+
+            # Record group attempt
+            self.quiz_manager.record_group_attempt(
+                user_id=answer.user.id,
+                chat_id=chat_id,
+                is_correct=is_correct
+            )
+
+        except Exception as e:
+            logger.error(f"Error handling answer: {str(e)}\n{traceback.format_exc()}")
+
+    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Optimized quiz sending with better performance"""
+        try:
+            # First, try to delete the last quiz if it exists
+            try:
+                chat_history = self.command_history.get(chat_id, [])
+                if chat_history:
+                    last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
+                    if last_quiz:
+                        msg_id = int(last_quiz.split("_")[1])
+                        await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete previous quiz: {e}")
+
+            # Get a random question for this specific chat
+            question = self.quiz_manager.get_random_question(chat_id)
+            if not question:
+                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
+                return
+
+            # Ensure question text is clean
+            question_text = question['question'].strip()
+            if question_text.startswith('/addquiz'):
+                question_text = question_text[len('/addquiz'):].strip()
+
+            # Send the poll
+            message = await context.bot.send_poll(
+                chat_id=chat_id,
+                question=question_text,
+                options=question['options'],
+                type=Poll.QUIZ,
+                correct_option_id=question['correct_answer'],
+                is_anonymous=False
+            )
+
+            if message and message.poll:
+                poll_data = {
+                    'chat_id': chat_id,
+                    'correct_option_id': question['correct_answer'],
+                    'user_answers': {},
+                    'poll_id': message.poll.id,
+                    'question': question_text,
+                    'timestamp': datetime.now().isoformat()
+                }
+                context.bot_data[f"poll_{message.poll.id}"] = poll_data
+                self.command_history[chat_id].append(f"/quiz_{message.message_id}")
+
+        except Exception as e:
+            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
+            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
+
+    async def cleanup_old_polls(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Optimized cleanup with better performance"""
+        try:
+            current_time = datetime.now()
+            keys_to_remove = []
+
+            for key, poll_data in context.bot_data.items():
+                if not key.startswith('poll_'):
+                    continue
+
+                if 'timestamp' in poll_data:
+                    poll_time = datetime.fromisoformat(poll_data['timestamp'])
+                    if (current_time - poll_time) > timedelta(hours=1):
+                        keys_to_remove.append(key)
+
+            for key in keys_to_remove:
+                del context.bot_data[key]
+
+            logger.info(f"Cleaned up {len(keys_to_remove)} old poll entries")
+
+        except Exception as e:
+            logger.error(f"Error cleaning up old polls: {e}")
+
+    async def initialize(self, token: str):
+        """Enhanced initialization with better performance and error handling"""
+        try:
+            # Build application with optimized settings
+            self.application = (
+                Application.builder()
+                .token(token)
+                .concurrent_updates(True)  # Enable concurrent updates
+                .build()
+            )
+
+            # Add global error handler
+            self.application.add_error_handler(self._handle_error)
+
+            # Add handlers with optimized order
+            self.application.add_handler(CommandHandler("start", self.start))
+            self.application.add_handler(CommandHandler("help", self.help))
+            self.application.add_handler(CommandHandler("quiz", self.quiz_command))
+            self.application.add_handler(CommandHandler("category", self.category))
+            self.application.add_handler(CommandHandler("leaderboard", self.leaderboard))
+
+            # Developer commands
+            self.application.add_handler(CommandHandler("dev", self.dev))
+            self.application.add_handler(CommandHandler("allreload", self.allreload))
+            self.application.add_handler(CommandHandler("addquiz", self.addquiz))
+            self.application.add_handler(CommandHandler("stats", self.stats))
+            self.application.add_handler(CommandHandler("editquiz", self.editquiz))
+            self.application.add_handler(CommandHandler("delquiz", self.delquiz))
+            self.application.add_handler(CommandHandler("delquiz_confirm", self.delquiz_confirm))
+            self.application.add_handler(CommandHandler("broadcast", self.broadcast))
+            self.application.add_handler(CommandHandler("totalquiz", self.totalquiz))
+            self.application.add_handler(CommandHandler("clear_quizzes", self.clear_quizzes))
+
+            # Handle answers and chat member updates
+            self.application.add_handler(PollAnswerHandler(self.handle_answer))
+            self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+
+            # Add callback query handler for clear_quizzes confirmation
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_clear_quizzes_callback,
+                pattern="^clear_quizzes_confirm_(yes|no)$"
+            ))
+
+            # Schedule jobs with optimized intervals
+            self.application.job_queue.run_repeating(
+                self.send_automated_quiz,
+                interval=1200,  # 20 minutes
+                first=10  # Start first quiz after 10 seconds
+            )
+
+            self.application.job_queue.run_repeating(
+                self.scheduled_cleanup,
+                interval=3600,  # Every hour
+                first=300  # Start first cleanup after 5 minutes
+            )
+
+            self.application.job_queue.run_repeating(
+                lambda context: self.quiz_manager.cleanup_old_questions(),
+                interval=3600,  # Every hour
+                first=600  # Start after 10 minutes
+            )
+
+            self.application.job_queue.run_repeating(
+                self.cleanup_old_polls,
+                interval=3600,  # Every hour
+                first=300
+            )
+
+            # Initialize cache
+            await self._update_cache()
+
+            await self.application.initialize()
+            await self.application.start()
+            await self.application.updater.start_polling()
+
+            return self
+
+        except Exception as e:
+            logger.error(f"Failed to initialize bot: {e}")
+            raise
 
     async def check_admin_status(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """Check if bot is admin in the chat"""
@@ -147,81 +376,6 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error in scheduled cleanup: {e}")
 
-    async def initialize(self, token: str):
-        """Initialize and start the bot"""
-        try:
-            # Build application
-            self.application = (
-                Application.builder()
-                .token(token)
-                .build()
-            )
-
-            # Add handlers for all commands
-            self.application.add_handler(CommandHandler("start", self.start))
-            self.application.add_handler(CommandHandler("help", self.help))
-            self.application.add_handler(CommandHandler("quiz", self.quiz_command))
-            self.application.add_handler(CommandHandler("category", self.category))
-            self.application.add_handler(CommandHandler("mystats", self.mystats))
-            self.application.add_handler(CommandHandler("groupstats", self.groupstats))
-            self.application.add_handler(CommandHandler("leaderboard", self.leaderboard))
-
-            # Developer commands
-            self.application.add_handler(CommandHandler("allreload", self.allreload))
-            self.application.add_handler(CommandHandler("addquiz", self.addquiz))
-            self.application.add_handler(CommandHandler("globalstats", self.globalstats))
-            self.application.add_handler(CommandHandler("editquiz", self.editquiz))
-            self.application.add_handler(CommandHandler("delquiz", self.delquiz))
-            self.application.add_handler(CommandHandler("delquiz_confirm", self.delquiz_confirm))
-            self.application.add_handler(CommandHandler("broadcast", self.broadcast))
-            self.application.add_handler(CommandHandler("totalquiz", self.totalquiz))
-            self.application.add_handler(CommandHandler("clear_quizzes", self.clear_quizzes))
-
-            # Handle answers and chat member updates
-            self.application.add_handler(PollAnswerHandler(self.handle_answer))
-            self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
-
-            # Add callback query handler for clear_quizzes confirmation
-            self.application.add_handler(CallbackQueryHandler(
-                self.handle_clear_quizzes_callback,
-                pattern="^clear_quizzes_confirm_(yes|no)$"
-            ))
-
-            # Schedule automated quiz job - every 20 minutes
-            self.application.job_queue.run_repeating(
-                self.send_automated_quiz,
-                interval=1200,  # 20 minutes
-                first=10  # Start first quiz after 10 seconds
-            )
-
-            # Schedule cleanup jobs
-            self.application.job_queue.run_repeating(
-                self.scheduled_cleanup,
-                interval=3600,  # Every hour
-                first=300  # Start first cleanup after 5 minutes
-            )
-            self.application.job_queue.run_repeating(
-                self.cleanup_old_polls,
-                interval=3600, #Every Hour
-                first=300
-            )
-            # Add question history cleanup job
-            self.application.job_queue.run_repeating(
-                lambda context: self.quiz_manager.cleanup_old_questions(),
-                interval=3600,  # Every hour
-                first=600  # Start after 10 minutes
-            )
-
-            await self.application.initialize()
-            await self.application.start()
-            await self.application.updater.start_polling()
-
-            return self
-
-        except Exception as e:
-            logger.error(f"Failed to initialize bot: {e}")
-            raise
-
     async def track_chats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Enhanced tracking when bot is added to or removed from chats"""
         try:
@@ -284,20 +438,33 @@ class TelegramQuizBot:
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
+            # Get chat info
+            chat = await context.bot.get_chat(chat_id)
+            user_name = "IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII"
 
-🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
-➜ Auto Quizzes – Fresh quiz every 20 mins!
-➜ Leaderboard – Track scores & compete!
-➜ Categories – GK, CA, History & more! /category
-➜ Instant Results – Answers in real-time!
+            # If it's a private chat, try to get user's name
+            if chat.type == "private":
+                try:
+                    user = chat.effective_user
+                    if user:
+                        user_name = f"IIı [{user.first_name}](tg://user?id={user.id}) 🇮🇳 ıII"
+                except:
+                    pass  # Keep default bot name if user info not available
 
-📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
+            welcome_message = f"""𝐖𝐞𝐥𝐜𝐨𝐦𝐞 {user_name}
+
+🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁 𓂀 𝗕𝗼𝘁?
+➜ ᴀᴜᴛᴏ ǫᴜɪᴢᴢᴇs – ғʀᴇsʜ ǫᴜɪᴢ ᴇᴠᴇʀʏ 20 ᴍɪɴs!  
+➜ ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ – ᴛʀᴀᴄᴋ sᴄᴏʀᴇs & ᴄᴏᴍᴘᴇᴛᴇ!  
+➜ ᴄᴀᴛᴇɢᴏʀɪᴇs – ᴄᴀ - ɢᴋ ʜɪsᴛᴏʀʏ & ᴍᴏʀᴇ! 
+➜ ɪɴsᴛᴀɴᴛ ʀᴇsᴜʟᴛs – ᴀɴsᴡᴇʀs ɪɴ ʀᴇᴀʟ-ᴛɪᴍᴇ!
+
+📝 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬
 /start – Begin your journey
 /help – View commands
 /category – View topics
 
-🔥 Add me to your groups for quiz fun!"""
+🔥 𝐀𝐝𝐝 𝐦𝐞 𝐭𝐨 𝐲𝐨𝐮𝐫 𝐠𝐫𝐨𝐮𝐩𝐬 𝐟𝐨𝐫 𝐪𝐮𝐢𝐳 𝐟𝐮𝐧!"""
 
             await context.bot.send_message(
                 chat_id=chat_id,
@@ -307,7 +474,6 @@ class TelegramQuizBot:
             )
 
             # Get chat type and handle accordingly
-            chat = await context.bot.get_chat(chat_id)
             if chat.type in ["group", "supergroup"]:
                 is_admin = await self.check_admin_status(chat_id, context)
                 if is_admin:
@@ -321,49 +487,6 @@ class TelegramQuizBot:
             logger.info(f"Sent welcome message to chat {chat_id}")
         except Exception as e:
             logger.error(f"Error sending welcome message: {e}")
-
-    async def handle_answer(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle quiz answers"""
-        try:
-            answer = update.poll_answer
-            if not answer or not answer.poll_id or not answer.user:
-                logger.warning("Received invalid poll answer")
-                return
-
-            logger.info(f"Received answer from user {answer.user.id} for poll {answer.poll_id}")
-
-            # Get quiz data from context using proper key
-            poll_data = context.bot_data.get(f"poll_{answer.poll_id}")
-            if not poll_data:
-                logger.warning(f"No poll data found for poll_id {answer.poll_id}")
-                return
-
-            # Check if this is a correct answer
-            is_correct = poll_data['correct_option_id'] in answer.option_ids
-            chat_id = poll_data['chat_id']
-
-            # Record the answer in poll_data
-            poll_data['user_answers'][answer.user.id] = {
-                'option_ids': answer.option_ids,
-                'is_correct': is_correct,
-                'timestamp': datetime.now().isoformat()
-            }
-
-            # Record both global and group-specific score
-            if is_correct:
-                self.quiz_manager.increment_score(answer.user.id)
-                logger.info(f"Recorded correct answer for user {answer.user.id}")
-
-            # Record group attempt
-            self.quiz_manager.record_group_attempt(
-                user_id=answer.user.id,
-                chat_id=chat_id,
-                is_correct=is_correct
-            )
-            logger.info(f"Recorded group attempt for user {answer.user.id} in chat {chat_id} (correct: {is_correct})")
-
-        except Exception as e:
-            logger.error(f"Error handling answer: {str(e)}\n{traceback.format_exc()}")
 
     async def quiz_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /quiz command"""
@@ -394,34 +517,43 @@ class TelegramQuizBot:
             # Check if user is developer
             is_dev = await self.is_developer(update.message.from_user.id)
 
-            help_text = """📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
-════════════════
-🎯 𝗚𝗘𝗡𝗘𝗥𝗔𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
-/start – Begin your quiz journey
-/help – Available commands
-/category – View Topics
-/quiz – Try a quiz demo
+            help_text = """𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁 𓂀 𝗕𝗼𝘁
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 | General Commands  
+➤ /start — 🚀 Begin your epic quiz journey  
+➤ /help — 🧾 View all available commands  
+➤ /category — 🗂 Browse through all quiz topics  
+➤ /quiz — 🎲 Attempt a random quiz and test your knowledge
 
-📊 𝗦𝗧𝗔𝗧𝗦 & 𝗟𝗘𝗔𝗗𝗘𝗥𝗕𝗢𝗔𝗥𝗗
-/mystats - Your Performance
-/groupstats – Your group performance
-/leaderboard – See champions"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 | Stats & Leaderboard  
+➤ /leaderboard — 🏆 See the top players battling for the crown
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━"""
 
             # Add developer commands only for developers
             if is_dev:
                 help_text += """
+🔐 | Admin / Developer Commands  
+Special commands for Admins and Developers only:
 
-🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
-/allreload – Full bot restart
-/addquiz – Add new questions
-/globalstats – Bot stats
-/editquiz – Modify quizzes
-/broadcast – Send announcements
-/delquiz - Delete a quiz
-/totalquiz - Show total quizzes
-/clear_quizzes - Remove all quizzes"""
+➤ /dev - 🤝 Devloper / Admin
+➤ /allreload — 🔄 Fully reboot the bot to apply all changes  
+➤ /addquiz — ➕ Add fresh quiz questions easily  
+➤ /editquiz — ✏️ Update or correct existing quizzes  
+➤ /delquiz — 🗑 Remove a specific quiz by ID  
+➤ /totalquiz — 🔢 Show total quizzes stored in the database  
+➤ /clear_quizzes — 💣 Wipe out all quizzes instantly (⚠️ irreversible)  
+➤ /broadcast — 📣 Deliver important announcements to all users  
+➤ /stats — 📈 View complete bot statistics"""
 
-            help_text += "\n════════════════"
+            help_text += """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌟 | Extra  
+➤ Use /help anytime if you feel lost  
+➤ Stay updated, stay ahead! 🚀
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━"""
 
             # Send help message with better error handling
             try:
@@ -434,7 +566,7 @@ class TelegramQuizBot:
             except Exception as e:
                 logger.error(f"Failed to send help message with markdown: {e}")
                 # Try sending without markdown formatting as fallback
-                plain_text = help_text.replace('𝗖', 'C').replace('𝗚', 'G').replace('𝗦', 'S').replace('𝗟', 'L').replace('𝗗', 'D').replace('𝗠', 'M').replace('𝗘', 'E').replace('═', '=').replace('•', '*')
+                plain_text = help_text.replace('𝗤', 'Q').replace('𝗶', 'i').replace('𝗺', 'm').replace('𝗽', 'p').replace('𝗮', 'a').replace('𝗰', 'c').replace('𝗧', 'T').replace('𝗕', 'B').replace('𝗼', 'o').replace('━', '-').replace('•', '*')
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
                     text=plain_text,
@@ -609,97 +741,43 @@ class TelegramQuizBot:
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Get basic stats with error handling
-            try:
-                active_chats = self.quiz_manager.get_active_chats()
-                total_users = len(self.quiz_manager.stats)
-                total_groups = len(active_chats)
-            except Exception as e:
-                logger.error(f"Error getting basic stats: {e}")
-                raise
+            # Get global statistics
+            stats = self.quiz_manager.get_global_statistics()
 
-            # Calculate time-based metrics
-            try:
-                current_date = datetime.now().strftime('%Y-%m-%d')
-                today_active_users = sum(
-                    1 for stats in self.quiz_manager.stats.values()
-                    if stats.get('last_activity_date') == current_date
-                )
-
-                week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
-                week_active_users = sum(
-                    1 for stats in self.quiz_manager.stats.values()
-                    if stats.get('last_activity_date', '1970-01-01') >= week_start
-                )
-            except Exception as e:
-                logger.error(f"Error calculating time-based metrics: {e}")
-                raise
-
-            # Calculate quiz statistics
-            try:
-                today_quizzes = sum(
-                    stats['daily_activity'].get(current_date, {}).get('attempts', 0)
-                    for stats in self.quiz_manager.stats.values()
-                )
-
-                week_quizzes = sum(
-                    sum(
-                        day_stats.get('attempts', 0)
-                        for date, day_stats in stats['daily_activity'].items()
-                        if date >= week_start
-                    )
-                    for stats in self.quiz_manager.stats.values()
-                )
-
-                # Calculate success rates
-                total_attempts = sum(
-                    stats.get('total_quizzes', 0)
-                    for stats in self.quiz_manager.stats.values()
-                )
-                correct_answers = sum(
-                    stats.get('correct_answers', 0)
-                    for stats in self.quiz_manager.stats.values()
-                )
-                success_rate = (
-                    round((correct_answers / total_attempts) * 100, 2)
-                    if total_attempts > 0 else 0
-                )
-            except Exception as e:
-                logger.error(f"Error calculating quiz statistics: {e}")
-                raise
-
+            # Format statistics message
             stats_message = f"""📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
 ════════════════
-👥 𝗨𝘀𝗲𝗿𝘀 & 𝗚𝗿𝗼𝘂𝗽𝘀
-• Total Users: {total_users}
-• Total Groups: {total_groups}
-• Active Today: {today_active_users}
-• Active This Week: {week_active_users}
 
-📈 𝗤𝘂𝗶𝘇 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
-• Today's Quizzes: {today_quizzes}
-• This Week: {week_quizzes}
-• Total Attempts: {total_attempts}
-• Correct Answers: {correct_answers}
-• Success Rate: {success_rate}%
+👥 𝗨𝘀𝗲𝗿𝘀
+• Total Users: {stats['users']['total']:,}
+• Active Today: {stats['users']['active_today']:,}
+• Active This Week: {stats['users']['active_week']:,}
+• Active This Month: {stats['users']['active_month']:,}
 
-⚡ 𝗥𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝗠𝗲𝘁𝗿𝗶𝗰𝘀
-• Active Groups Now: {len([c for c in active_chats if self.quiz_manager.get_group_last_activity(c) == current_date])}
-• Total Questions: {len(self.quiz_manager.questions)}
+📈 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
+• Questions Available: {stats['performance']['questions_available']:,}
+• Total Quizzes Sent: {stats['performance']['total_quizzes']:,}
+• Correct Answers: {stats['performance']['correct_answers']:,}
+• Success Rate: {stats['performance']['success_rate']}%
+
+👥 𝗚𝗿𝗼𝘂𝗽𝘀
+• Total Groups: {stats['groups']['total']:,}
+• Active Groups: {stats['groups']['active']:,}
+• Inactive Groups: {stats['groups']['inactive']:,}
+
+🎯 𝗧𝗼𝗱𝗮𝘆'𝘀 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
+• Quizzes Today: {stats['today']['quizzes']:,}
+• Users Today: {stats['today']['users']:,}
+• Success Rate: {stats['today']['success_rate']}%
+
 ════════════════"""
 
-            try:
-                await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
-                logger.info(f"Global stats shown to developer {update.effective_user.id}")
-            except Exception as e:
-                logger.error(f"Failed to send stats with markdown: {e}")
-                # Fallback to plain text if markdown fails
-                plain_text = stats_message.replace('𝗕', 'B').replace('𝗨', 'U').replace('𝗚', 'G').replace('𝗤', 'Q').replace('𝗔', 'A').replace('𝗥', 'R').replace('𝗠', 'M').replace('═', '=').replace('•', '*')
-                await update.message.reply_text(plain_text)
+            await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
+            logger.info(f"Global stats shown to developer {update.effective_user.id}")
 
         except Exception as e:
-            logger.error(f"Error in globalstats: {e}\n{traceback.format_exc()}")
-            await update.message.reply_text("❌ Error retrieving global statistics. Please try again.")
+            logger.error(f"Error in stats command: {e}")
+            await update.message.reply_text("❌ Error retrieving statistics. Please try again.")
 
     async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Enhanced reload functionality with proper instance management and auto-cleanup"""
@@ -952,104 +1030,62 @@ Error: {str(e)}
             logger.error(f"Error in addquiz: {e}")
             await update.message.reply_text("❌ Error adding quiz.")
 
-    async def globalstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show comprehensive bot statistics - Developer only"""
+    async def stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Show complete bot statistics with real-time monitoring - Developer only"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Get basic stats with error handling
-            try:
-                active_chats = self.quiz_manager.get_active_chats()
-                total_users = len(self.quiz_manager.stats)
-                total_groups = len(active_chats)
-            except Exception as e:
-                logger.error(f"Error getting basic stats: {e}")
-                raise
+            # Get global statistics
+            stats = self.quiz_manager.get_global_statistics()
 
-            # Calculate time-based metrics
-            try:
-                current_date = datetime.now().strftime('%Y-%m-%d')
-                today_active_users = sum(
-                    1 for stats in self.quiz_manager.stats.values()
-                    if stats.get('last_activity_date') == current_date
-                )
+            # Calculate real-time metrics
+            current_time = datetime.now()
+            today_start = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = today_start - timedelta(days=today_start.weekday())
+            month_start = today_start.replace(day=1)
 
-                week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
-                week_active_users = sum(
-                    1 for stats in self.quiz_manager.stats.values()
-                    if stats.get('last_activity_date', '1970-01-01') >= week_start
-                )
-            except Exception as e:
-                logger.error(f"Error calculating time-based metrics: {e}")
-                raise
-
-            # Calculate quiz statistics
-            try:
-                today_quizzes = sum(
-                    stats['daily_activity'].get(current_date, {}).get('attempts', 0)
-                    for stats in self.quiz_manager.stats.values()
-                )
-
-                week_quizzes = sum(
-                    sum(
-                        day_stats.get('attempts', 0)
-                        for date, day_stats in stats['daily_activity'].items()
-                        if date >= week_start
-                    )
-                    for stats in self.quiz_manager.stats.values()
-                )
-
-                # Calculate success rates
-                total_attempts = sum(
-                    stats.get('total_quizzes', 0)
-                    for stats in self.quiz_manager.stats.values()
-                )
-                correct_answers = sum(
-                    stats.get('correct_answers', 0)
-                    for stats in self.quiz_manager.stats.values()
-                )
-                success_rate = (
-                    round((correct_answers / total_attempts) * 100, 2)
-                    if total_attempts > 0 else 0
-                )
-            except Exception as e:
-                logger.error(f"Error calculating quiz statistics: {e}")
-                raise
-
-            stats_message = f"""📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
+            # Format statistics message with enhanced analytics
+            stats_message = f"""📊 𝗕𝗼𝘁 𝗔𝗻𝗮𝗹𝘆𝘁𝗶𝗰𝘀
 ════════════════
-👥 𝗨𝘀𝗲𝗿𝘀 & 𝗚𝗿𝗼𝘂𝗽𝘀
-• Total Users: {total_users}
-• Total Groups: {total_groups}
-• Active Today: {today_active_users}
-• Active This Week: {week_active_users}
 
-📈 𝗤𝘂𝗶𝘇 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
-• Today's Quizzes: {today_quizzes}
-• This Week: {week_quizzes}
-• Total Attempts: {total_attempts}
-• Correct Answers: {correct_answers}
-• Success Rate: {success_rate}%
+👥 𝗨𝘀𝗲𝗿 𝗔𝗻𝗮𝗹𝘆𝘁𝗶𝗰𝘀
+• Total Users: {stats['users']['total']:,}
+• Active Today: {stats['users']['active_today']:,}
+• Active This Week: {stats['users']['active_week']:,}
+• Active This Month: {stats['users']['active_month']:,}
+• New Users Today: {stats.get('users', {}).get('new_today', 0):,}
+• User Retention Rate: {stats.get('users', {}).get('retention_rate', 0)}%
 
-⚡ 𝗥𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝗠𝗲𝘁𝗿𝗶𝗰𝘀
-• Active Groups Now: {len([c for c in active_chats if self.quiz_manager.get_group_last_activity(c) == current_date])}
-• Total Questions: {len(self.quiz_manager.questions)}
+📈 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲 𝗠𝗲𝘁𝗿𝗶𝗰𝘀
+• Questions Available: {stats['performance']['questions_available']:,}
+• Total Quizzes Sent: {stats['performance']['total_quizzes']:,}
+• Correct Answers: {stats['performance']['correct_answers']:,}
+• Success Rate: {stats['performance']['success_rate']}%
+• Average Response Time: {stats.get('performance', {}).get('avg_response_time', 'N/A')}
+• Quiz Completion Rate: {stats.get('performance', {}).get('completion_rate', 0)}%
+
+👥 𝗚𝗿𝗼𝘂𝗽 𝗔𝗻𝗮𝗹𝘆𝘁𝗶𝗰𝘀
+• Total Groups: {stats['groups']['total']:,}
+• Active Groups: {stats['groups']['active']:,}
+• Inactive Groups: {stats['groups']['inactive']:,}
+• Group Activity Rate: {stats.get('groups', {}).get('activity_rate', 0)}%
+• Average Group Size: {stats.get('groups', {}).get('avg_size', 0):.1f}
+
+🎯 𝗧𝗼𝗱𝗮𝘆'𝘀 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
+• Quizzes Today: {stats['today']['quizzes']:,}
+• Users Today: {stats['today']['users']:,}
+• Success Rate: {stats['today']['success_rate']}%
+
 ════════════════"""
 
-            try:
-                await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
-                logger.info(f"Global stats shown to developer {update.effective_user.id}")
-            except Exception as e:
-                logger.error(f"Failed to send stats with markdown: {e}")
-                # Fallback to plain text if markdown fails
-                plain_text = stats_message.replace('𝗕', 'B').replace('𝗨', 'U').replace('𝗚', 'G').replace('𝗤', 'Q').replace('𝗔', 'A').replace('𝗥', 'R').replace('𝗠', 'M').replace('═', '=').replace('•', '*')
-                await update.message.reply_text(plain_text)
+            await update.message.reply_text(stats_message, parse_mode=ParseMode.MARKDOWN)
+            logger.info(f"Global stats shown to developer {update.effective_user.id}")
 
         except Exception as e:
-            logger.error(f"Error in globalstats: {e}\n{traceback.format_exc()}")
-            await update.message.reply_text("❌ Error retrieving global statistics. Please try again.")
+            logger.error(f"Error in stats command: {e}")
+            await update.message.reply_text("❌ Error retrieving statistics. Please try again.")
 
     async def editquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show and edit quiz questions - Developer only"""
@@ -1191,10 +1227,23 @@ Failed to display quizzes. Please try again later.
 
     async def _handle_dev_command_unauthorized(self, update: Update) -> None:
         """Handle unauthorized access to developer commands"""
-        await update.message.reply_text(
-            "⚠️ This command is only available to bot developers.",
-            parse_mode=ParseMode.MARKDOWN
-        )
+        unauthorized_message = """🔒 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥 𝗔𝗖𝗖𝗘𝗦𝗦 𝗢𝗡𝗟𝗬
+━━━━━━━━━━━━━━━━━━ 🚀 Restricted Access
+• These special commands are exclusively reserved for the Developer & his Wifu 👸 — ensuring top-tier quiz security and smooth operations!
+━━━━━━━━━━━━━━━━━━
+📌 Support & Inquiries
+➤ 📩 Contact: 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿 & 𝗛𝗶𝘀 𝗪𝗶𝗳𝘂 ❤️
+➤ 💰 Paid Promotions: Available up to 3K GC 🚀
+➤ 📝 Contribute: Share your quiz ideas anytime
+➤ ⚠️ Report: Any issues, bugs, or errors
+➤ 💡 Suggest: Upgrades and new features
+━━━━━━━━━━━━━━━━━━
+✅ Thanks for being part of our community!
+
+Built with love, protected by dreams. 💖✨
+━━━━━━━━━━━━━━━━━━"""
+
+        await update.message.reply_text(unauthorized_message, parse_mode=ParseMode.MARKDOWN)
         logger.warning(f"Unauthorized access attempt to dev command by user {update.message.from_user.id}")
 
     async def is_developer(self, user_id: int) -> bool:
@@ -1210,11 +1259,35 @@ Failed to display quizzes. Please try again later.
                 await self._handle_dev_command_unauthorized(update)
                 return
 
-            # Get broadcast message
-            message_text = update.message.text.replace('/broadcast', '', 1).strip()
-            if not message_text:
-                await update.message.reply_text("❌ Please provide a message to broadcast.")
-                return
+            # Get broadcast message from either direct command or reply
+            message_text = ""
+            if update.message.reply_to_message:
+                # If replying to a message, use that message's content
+                if update.message.reply_to_message.text:
+                    message_text = update.message.reply_to_message.text
+                elif update.message.reply_to_message.caption:
+                    message_text = update.message.reply_to_message.caption
+                else:
+                    await update.message.reply_text(
+                        """❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗠𝗲𝘀𝘀𝗮𝗴𝗲
+════════════════
+Please reply to a text message or use /broadcast with a message.
+════════════════""",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    return
+            else:
+                # Get message from command arguments
+                message_text = update.message.text.replace('/broadcast', '', 1).strip()
+                if not message_text:
+                    await update.message.reply_text(
+                        """❌ 𝗠𝗶𝘀𝘀𝗶𝗻𝗴 𝗠𝗲𝘀𝘀𝗮𝗴𝗲
+════════════════
+Please provide a message to broadcast or reply to a message with /broadcast.
+════════════════""",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    return
 
             # Format broadcast message
             broadcast_message = f"""📢 𝗔𝗻𝗻𝗼𝘂𝗻𝗰𝗲𝗺𝗲𝗻𝘁
@@ -1224,35 +1297,74 @@ Failed to display quizzes. Please try again later.
 
             # Get all active chats
             active_chats = self.quiz_manager.get_active_chats()
+            if not active_chats:
+                await update.message.reply_text(
+                    """❌ 𝗡𝗼 𝗔𝗰𝘁𝗶𝘃𝗲 𝗖𝗵𝗮𝘁𝘀
+════════════════
+No active chats found to broadcast to.
+════════════════""",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return
+
+            # Send initial status
+            status_message = await update.message.reply_text(
+                f"""🔄 𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀
+════════════════
+⏳ Starting broadcast to {len(active_chats)} chats...
+════════════════""",
+                parse_mode=ParseMode.MARKDOWN
+            )
+
             success_count = 0
             failed_count = 0
-            
-            # Send to all chats
-            for chat_id in active_chats:
+            failed_chats = []
+
+            # Send to all chats with rate limiting
+            for i, chat_id in enumerate(active_chats, 1):
                 try:
+                    # Update progress every 10 chats
+                    if i % 10 == 0:
+                        await status_message.edit_text(
+                            f"""🔄 𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀
+════════════════
+⏳ Progress: {i}/{len(active_chats)} chats
+✅ Success: {success_count}
+❌ Failed: {failed_count}
+════════════════""",
+                            parse_mode=ParseMode.MARKDOWN
+                        )
+
                     await context.bot.send_message(
                         chat_id=chat_id,
                         text=broadcast_message,
                         parse_mode=ParseMode.MARKDOWN
                     )
                     success_count += 1
-                    await asyncio.sleep(0.1)  # Prevent flooding
+                    await asyncio.sleep(0.1)  # Rate limiting
+
                 except Exception as e:
                     failed_count += 1
+                    failed_chats.append(chat_id)
                     logger.error(f"Failed to send broadcast to {chat_id}: {e}")
+                    continue
 
-            # Send results
-            results = f"""📢 Broadcast Results:
+            # Send final results
+            results = f"""📢 𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁 𝗥𝗲𝘀𝘂𝗹𝘁𝘀
+════════════════
 ✅ Successfully sent to: {success_count} chats
-❌ Failed to send to: {failed_count} chats"""
+❌ Failed to send to: {failed_count} chats
 
-            result_msg = await update.message.reply_text(results)
+{'⚠️ Some chats failed to receive the message.' if failed_count > 0 else '✨ All messages sent successfully!'}
+════════════════"""
+
+            await status_message.edit_text(results, parse_mode=ParseMode.MARKDOWN)
 
             # Auto-delete command and result in groups
             if update.message.chat.type != "private":
                 asyncio.create_task(self._delete_messages_after_delay(
                     chat_id=update.message.chat_id,
-                    message_ids=[update.message.message_id, result_msg.message_id],
+                    message_ids=[update.message.message_id, status_message.message_id],
                     delay=5
                 ))
 
@@ -1260,7 +1372,14 @@ Failed to display quizzes. Please try again later.
 
         except Exception as e:
             logger.error(f"Error in broadcast: {e}")
-            await update.message.reply_text("❌ Error sending broadcast. Please try again.")
+            await update.message.reply_text(
+                """❌ 𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁 𝗘𝗿𝗿𝗼𝗿
+════════════════
+Failed to send broadcast.
+Please try again later.
+════════════════""",
+                parse_mode=ParseMode.MARKDOWN
+            )
 
     async def check_admin_status(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """Check if bot is admin in the chat"""
@@ -1408,11 +1527,48 @@ Add new quizzes using /addquiz command
                 poll_id = update.message.reply_to_message.poll.id
                 poll_data = context.bot_data.get(f"poll_{poll_id}")
 
+                # If poll data not found in current context, search in all questions
                 if not poll_data:
-                    await self._handle_quiz_not_found(update, context)
+                    # Find the quiz in questions list by matching question text
+                    found_idx = -1
+                    for idx, q in enumerate(questions):
+                        if q['question'] == update.message.reply_to_message.poll.question:
+                            found_idx = idx
+                            break
+
+                    if found_idx == -1:
+                        await self._handle_quiz_not_found(update, context)
+                        return
+
+                    # Show confirmation message
+                    quiz = questions[found_idx]
+                    confirm_text = f"""🗑 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
+════════════════
+
+📌 𝗤𝘂𝗶𝘇 #{found_idx + 1}
+❓ Question: {quiz['question']}
+
+📍 𝗢𝗽𝘁𝗶𝗼𝗻𝘀:"""
+                    for i, opt in enumerate(quiz['options'], 1):
+                        marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
+                        confirm_text += f"\n{marker} {i}. {opt}"
+
+                    confirm_text += f"""
+
+⚠️ 𝗧𝗼 𝗰𝗼𝗻𝗳𝗶𝗿𝗺 𝗱𝗲𝗹𝗲𝘁𝗶𝗼𝗻:
+/delquiz_confirm {found_idx + 1}
+
+❌ 𝗧𝗼 𝗰𝗮𝗻𝗰𝗲𝗹:
+Use any other command or ignore this message
+════════════════"""
+
+                    await update.message.reply_text(
+                        confirm_text,
+                        parse_mode=ParseMode.MARKDOWN
+                    )
                     return
 
-                # Find the quiz in questions list
+                # If poll data found in context, proceed with normal flow
                 found_idx = -1
                 for idx, q in enumerate(questions):
                     if q['question'] == poll_data['question']:
@@ -1438,7 +1594,7 @@ Add new quizzes using /addquiz command
 
                 confirm_text += f"""
 
-⚠️ 𝗧𝗼 𝗰𝗼𝗻𝗳𝗶𝗿𝗺 𝗱𝗲𝗹𝗲𝘁𝗶𝗼𝗻:
+⚠️ 𝗧𝗼 𝗰𝗼𝗳𝗶𝗿𝗺 𝗱𝗲𝗹𝗲𝘁𝗶𝗼𝗻:
 /delquiz_confirm {found_idx + 1}
 
 ❌ 𝗧𝗼 𝗰𝗮𝗻𝗰𝗲𝗹:
@@ -1495,7 +1651,7 @@ Please choose a number between 1 and {len(questions)}
 
                 confirm_text += f"""
 
-⚠️ 𝗧𝗼 𝗰𝗼𝗻𝗳𝗶𝗿𝗺 𝗱𝗲𝗹𝗲𝘁𝗶𝗼𝗻:
+⚠️ 𝗧𝗼 𝗰𝗼𝗳𝗶𝗿𝗺 𝗱𝗲𝗹𝗲𝘁𝗶𝗼𝗻:
 /delquiz_confirm {quiz_num}
 
 ❌ 𝗧𝗼 𝗰𝗮𝗻𝗰𝗲𝗹:
@@ -1988,14 +2144,13 @@ No changes were made.
             self.application.add_handler(CommandHandler("help", self.help))
             self.application.add_handler(CommandHandler("quiz", self.quiz_command))
             self.application.add_handler(CommandHandler("category", self.category))
-            self.application.add_handler(CommandHandler("mystats", self.mystats))
-            self.application.add_handler(CommandHandler("groupstats", self.groupstats))
             self.application.add_handler(CommandHandler("leaderboard", self.leaderboard))
 
             # Developer commands
+            self.application.add_handler(CommandHandler("dev", self.dev))
             self.application.add_handler(CommandHandler("allreload", self.allreload))
             self.application.add_handler(CommandHandler("addquiz", self.addquiz))
-            self.application.add_handler(CommandHandler("globalstats", self.globalstats))
+            self.application.add_handler(CommandHandler("stats", self.stats))
             self.application.add_handler(CommandHandler("editquiz", self.editquiz))
             self.application.add_handler(CommandHandler("delquiz", self.delquiz))
             self.application.add_handler(CommandHandler("delquiz_confirm", self.delquiz_confirm))
@@ -2048,3 +2203,141 @@ No changes were made.
         except Exception as e:
             logger.error(f"Failed to initialize bot: {e}")
             raise
+
+    async def dev(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle the /dev command - Developer only"""
+        try:
+            if not await self.is_developer(update.message.from_user.id):
+                await self._handle_dev_command_unauthorized(update)
+                return
+
+            # Get current bot stats
+            stats = self.quiz_manager.get_global_statistics()
+            current_time = datetime.now()
+
+            dev_message = f"""👨‍💻 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿 𝗗𝗮𝘀𝗵𝗯𝗼𝗮𝗿𝗱
+════════════════
+🎯 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘂𝘀
+• Version: 1.0.0
+• Status: Active
+• Last Update: {current_time.strftime('%Y-%m-%d %H:%M')}
+• Uptime: {self._get_uptime()}
+
+📊 𝗤𝘂𝗶𝗰𝗸 𝗦𝘁𝗮𝘁𝘀
+• Active Users: {stats['users']['active_today']:,}
+• Total Groups: {stats['groups']['total']:,}
+• Questions: {stats['performance']['questions_available']:,}
+• Success Rate: {stats['performance']['success_rate']}%
+
+🔧 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀
+• /allreload — 🔄 Reboot bot
+• /addquiz — ➕ Add questions
+• /editquiz — ✏️ Edit questions
+• /delquiz — 🗑 Delete questions
+• /totalquiz — 🔢 View total
+• /clear_quizzes — 💣 Clear all
+• /broadcast — 📣 Send message
+• /stats — 📈 View stats
+
+📝 𝗡𝗼𝘁𝗲
+Use /help for more details
+════════════════"""
+
+            try:
+                await update.message.reply_text(dev_message, parse_mode=ParseMode.MARKDOWN)
+                logger.info(f"Dev info shown to user {update.message.from_user.id}")
+            except Exception as e:
+                logger.error(f"Failed to send dev message with markdown: {e}")
+                # Fallback to plain text
+                plain_text = dev_message.replace('𝗗', 'D').replace('𝗮', 'a').replace('𝗯', 'b').replace('𝗼', 'o').replace('𝗿', 'r').replace('═', '=')
+                await update.message.reply_text(plain_text)
+
+        except Exception as e:
+            logger.error(f"Error in dev command: {e}")
+            await update.message.reply_text(
+                """❌ 𝗘𝗿𝗿𝗼𝗿
+════════════════
+Failed to show developer info.
+Please try again later.
+════════════════""",
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+    def _get_uptime(self) -> str:
+        """Calculate bot uptime"""
+        try:
+            uptime = datetime.now() - self.start_time
+            days = uptime.days
+            hours, remainder = divmod(uptime.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            
+            if days > 0:
+                return f"{days}d {hours}h {minutes}m"
+            elif hours > 0:
+                return f"{hours}h {minutes}m {seconds}s"
+            else:
+                return f"{minutes}m {seconds}s"
+        except:
+            return "Unknown"
+
+    async def _handle_error(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Global error handler for all errors"""
+        try:
+            # Log the error
+            logger.error(f"Error occurred: {context.error}")
+
+            # Get the error type
+            error_type = type(context.error).__name__
+
+            # Handle different types of errors
+            if isinstance(context.error, telegram.error.NetworkError):
+                # Network errors - try to recover
+                await asyncio.sleep(1)  # Wait a bit before retrying
+                return
+
+            elif isinstance(context.error, telegram.error.Unauthorized):
+                # Bot was blocked or token invalid
+                logger.error("Bot was blocked or token is invalid")
+                return
+
+            elif isinstance(context.error, telegram.error.BadRequest):
+                # Invalid request - usually user error
+                if update and update.effective_message:
+                    await update.effective_message.reply_text(
+                        "❌ Invalid request. Please try again.",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                return
+
+            elif isinstance(context.error, telegram.error.TimedOut):
+                # Request timed out - try to recover
+                await asyncio.sleep(1)
+                return
+
+            # For other errors, try to send a user-friendly message
+            if update and update.effective_message:
+                error_message = """❌ 𝗘𝗿𝗿𝗼𝗿 𝗢𝗰𝗰𝘂𝗿𝗿𝗲𝗱
+════════════════
+Sorry, something went wrong. Please try again later.
+
+If the problem persists, contact the developer.
+════════════════"""
+                await update.effective_message.reply_text(
+                    error_message,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+
+        except Exception as e:
+            logger.error(f"Error in error handler: {e}")
+
+    async def _retry_on_error(self, func, *args, max_retries=3, **kwargs):
+        """Retry a function on error with exponential backoff"""
+        for attempt in range(max_retries):
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise
+                wait_time = (2 ** attempt) * 0.5  # Exponential backoff
+                await asyncio.sleep(wait_time)
+                logger.warning(f"Retrying {func.__name__} after error: {e}")
